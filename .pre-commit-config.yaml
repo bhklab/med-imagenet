@@ -8,7 +8,7 @@ repos:
     hooks:
       - id: markdownlint
         name: markdownlint
-        entry: pixi run mdlint
+        entry: pixi run mdlint --fix
         language: node
         types: [markdown]
         require_serial: true
