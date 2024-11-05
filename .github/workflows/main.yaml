@@ -42,8 +42,8 @@ jobs:
           locked: false
 
       - name: Build documentation
-        run: pixi run build
+        run: pixi run -e docs build
 
       - name: Build and deploy documentation (only on push to main)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: pixi run mike deploy --push dev devel
+        run: pixi run -e docs mike deploy --push dev devel
