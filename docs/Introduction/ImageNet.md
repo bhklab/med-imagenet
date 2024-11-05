@@ -89,11 +89,10 @@ years to come.
 
 TODO: *add image summarizing the impact of ImageNet on AI and machine learning fields*
 
-
 ## Extra Resources
 
 - [ImageNet: A Large-Scale Hierarchical Image Database](https://www.cv-foundation.org/openaccess/content_cvpr_2015/papers/Deng_ImageNet_A_Large-Scale_2015_CVPR_paper.pdf)
 - [ImageNet Large Scale Visual Recognition Challenge (ILSVRC)](https://image-net.org/challenges/LSVRC/)
 - [ImageNet: A Large Scale Hierarchical Image Database](https://www.cv-foundation.org/openaccess/content_cvpr_2015/papers/Deng_ImageNet_A_Large-Scale_2015_CVPR_paper.pdf)
 - [ImageNet: A Large Scale Hierarchical Image Database](https://www.cv-foundation.org/openaccess/content_cvpr_2015/papers/Deng_ImageNet_A_Large-Scale_2015_CVPR_paper.pdf)
-- https://viso.ai/deep-learning/imagenet/
+<!-- - <https://viso.ai/deep-learning/imagenet/> -->
