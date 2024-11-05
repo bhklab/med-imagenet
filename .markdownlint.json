@@ -1,0 +1,13 @@
+{
+  "line-length": {
+    "line_length": 80,
+    "code_block_line_length": 120
+  },
+  "no-inline-html": false,
+  "reference-links-images": false,
+  "link-fragments": false,
+  "MD007": { "indent": 4 },
+  "code-block-style": false,
+  "no-emphasis-as-heading": false,
+  "no-alt-text": false
+}

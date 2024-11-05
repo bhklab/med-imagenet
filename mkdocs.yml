@@ -1,0 +1,78 @@
+site_name: Med-ImageNet
+
+markdown_extensions:
+  - toc:
+      permalink: "#"
+      permalink_title: Anchor link to this section for reference
+      toc_depth: 3
+  - admonition
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.keys
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.highlight: # from https://squidfunk.github.io/mkdocs-material/reference/code-blocks/
+      anchor_linenums: true
+      line_spans: __span
+      use_pygments: true
+      pygments_lang_class: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - footnotes
+
+plugins:
+  - redirects:
+      redirect_maps:
+        "index.md": "Overview/index.md"
+  - awesome-pages # simplifies configuring page titles and their order
+  - search # necessary for search functionality to work
+  - git-authors # adds authors to pages using git history
+  - autorefs: # automatically link to another page's ref
+      resolve_closest: true
+  - git-revision-date-localized: # adds a date to the bottom of each page
+      enable_creation_date: true
+  - include-markdown # allows for including Markdown files into another Markdown file
+  - mike # mike handles versioned documentation
+
+theme:
+  # logo: assets/bhklab_logo.png
+  name: material
+  icon:
+    annotation: material/plus-circle
+    repo: fontawesome/brands/github
+  features:
+    - header.autohide # hides header when scrolling down
+    ###########################################################################
+    - content.code.annotate # adds annotations to code blocks
+    - content.code.copy # adds a copy button to code blocks
+    - content.code.select # allows selecting text in code blocks
+    - content.tabs.link # links between tabbed content
+    - content.tooltips # enables tooltips for additional info
+    ###########################################################################
+    - navigation.indexes # provides index pages for navigation
+    - navigation.instant # instant loading of pages
+    - navigation.instant.prefetch # prefetches pages for instant navigation
+    - navigation.path # displays path navigation
+    # - navigation.tabs                  # adds tab navigation support
+    - navigation.top # back to top navigation button
+    - navigation.tracking # tracks page navigation statistics
+    - navigation.footer # adds a footer to the bottom of the page
+    ###########################################################################
+    - search.highlight # highlights search terms
+    - search.suggest # suggests search query completions
+    - search.share # adds a share button to search results
+    ###########################################################################
+    - toc.follow # keeps track of the current table of contents entry
+  font:
+    text: Red Hat Text
+    code: JetBrains Mono
+
+extra_javascript:
+  - https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML
