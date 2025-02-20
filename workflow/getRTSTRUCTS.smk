@@ -2,75 +2,89 @@ import pandas as pd
 from pathlib import Path
 from nbiatoolkit.settings import Settings
 allseriesdf = pd.read_csv("allseries.tsv", sep="\t", low_memory=False)
-collections = allseriesdf[allseriesdf["Modality"] == "RTSTRUCT"]["Collection"].unique()
 
-collections = collections[:9]
-seriesdf = allseriesdf[allseriesdf["Collection"].isin(collections) & (allseriesdf["Modality"] == "RTSTRUCT")]
-# subsetdf = seriesdf[seriesdf["Collection"].isin(collections_with_rtstructs) & (seriesdf["Modality"] == "RTSTRUCT")]
+supported_modalities = ["SEG"]
 
+# get 5 series from allseriesdf where modality is SEG
+collections = allseriesdf[allseriesdf["Modality"].isin(supported_modalities)]["Collection"].unique()
+seriesdf = allseriesdf[allseriesdf["Collection"].isin(collections) & (allseriesdf["Modality"].isin(supported_modalities))]
 
-# sampledf = subsetdf.sample(10)
-# sampledf.to_csv("sample_series.tsv", sep="\t", index=False)
-# sampledf = pd.read_csv("sample_series.tsv", sep="\t", low_memory=False)
-# collections = sampledf["Collection"].unique()
+collections = seriesdf["Collection"].unique()
+with open("modality_counts.txt", "w") as f:
+    f.write(seriesdf["Modality"].value_counts().to_string())
 
 settings = Settings()
-
 rule all:
     input:
-        "results/summary.csv"
-
-rule summarize_data:
-    input:
-        collection_summaries = expand(
+        collection_summaries_rtstructs = expand(
             "results/{collection}_RTSTRUCT_summary.csv",
             collection=collections
+        ),
+        collection_summaries_seg = expand(
+            "results/{collection}_SEG_summary.csv",
+            collection=collections
         )
-    output:
-        "results/summary.csv"
-    run:
-        # combine all the collection summaries into one
-        dfs = []
-        for collection_summary in input.collection_summaries:
-            dfs.append(pd.read_csv(collection_summary))
 
-        summary = pd.concat(dfs)
-        summary.to_csv(output[0], index=False)
 
-rule collect_rtstruct_summaries:
+rule collect_summaries:
     input:
-        rtstructs = collect(
+        mask_metadata = collect(
             "procdata/{series.Collection}/{series.Modality}/{series.SeriesInstanceUID}.json",
             series = lookup(
-                query="Collection == '{collection}'",
+                query="Collection == '{collection}' and Modality == '{modality}'",
                 within=seriesdf
             )
         )
     output:
-        collection_summary = "results/{collection}_RTSTRUCT_summary.csv"
+        collection_summary = "results/{collection}_{modality}_summary.csv"
     run:
         import json
         # import all the jsons and then convert to pandas csv
-        rtstructs = [f for f in input.rtstructs]
-        rtstruct_summaries = []
-        for rtstruct in rtstructs:
-            with open(rtstruct) as f:
-                rtstruct_summaries.append(json.load(f))
-        rtstruct_summaries = pd.DataFrame(rtstruct_summaries)
+        if wildcards.modality == "RTSTRUCT":
+            rtstructs = [f for f in input.mask_metadata]
+            rtstruct_summaries = []
+            for rtstruct in rtstructs:
+                with open(rtstruct) as f:
+                    rtstruct_summaries.append(json.load(f))
+            rtstruct_summaries = pd.DataFrame(rtstruct_summaries)
 
-        allseries_copy = allseriesdf.copy()
-        rtstruct_summaries_merged = rtstruct_summaries.merge(
-            allseries_copy[["SeriesInstanceUID", "Modality"]],
-            left_on="ReferencedSeriesInstanceUID",
-            right_on="SeriesInstanceUID",
-            how="left",
-            suffixes=("", "_referenced")
-        ).drop(columns=["SeriesInstanceUID_referenced"])
+            allseries_copy = allseriesdf.copy()
+            rtstruct_summaries_merged = rtstruct_summaries.merge(
+                allseries_copy[["SeriesInstanceUID", "Modality"]],
+                left_on="ReferencedSeriesInstanceUID",
+                right_on="SeriesInstanceUID",
+                how="left",
+                suffixes=("", "_referenced")
+            ).drop(columns=["SeriesInstanceUID_referenced"])
 
-        # rename Modality_referenced to ReferencedModality
-        rtstruct_summaries_merged.rename(columns={"Modality_referenced": "ReferencedModality"}, inplace=True)
+            # rename Modality_referenced to ReferencedModality
+            rtstruct_summaries_merged.rename(columns={"Modality_referenced": "ReferencedModality"}, inplace=True)
 
-        rtstruct_summaries_merged.to_csv(output.collection_summary, index=False)
+            rtstruct_summaries_merged.to_csv(output.collection_summary, index=False)
+        elif wildcards.modality == "SEG":
+            segs = [f for f in input.mask_metadata]
+            seg_summaries = []
+            for seg in segs:
+                with open(seg) as f:
+                    seg_summaries.append(json.load(f))
+            seg_summaries = pd.DataFrame(seg_summaries)
+            # check if any of the segs have a ReferencedSeriesInstanceUID
+            if "ReferencedSeriesInstanceUID" in seg_summaries.columns:
+                allseries_copy = allseriesdf.copy()
+                seg_summaries_merged = seg_summaries.merge(
+                    allseries_copy[["SeriesInstanceUID", "Modality"]],
+                    left_on="ReferencedSeriesInstanceUID",
+                    right_on="SeriesInstanceUID",
+                    how="left",
+                    suffixes=("", "_referenced")
+                ).drop(columns=["SeriesInstanceUID_referenced"])
+
+                # rename Modality_referenced to ReferencedModality
+                seg_summaries_merged.rename(columns={"Modality_referenced": "ReferencedModality"}, inplace=True)
+
+                seg_summaries_merged.to_csv(output.collection_summary, index=False)
+            else:
+                seg_summaries.to_csv(output.collection_summary, index=False)
 
 rule get_rtstruct_summary:
     output:
@@ -80,3 +94,12 @@ rule get_rtstruct_summary:
         NBIA_PASSWORD=settings.NBIA_PASSWORD
     script:
         "scripts/get_rtstruct_summary.py"
+
+rule get_seg_summary:
+    output:
+        seg_summary = "procdata/{Collection}/SEG/{SeriesInstanceUID}.json"
+    params:
+        NBIA_USERNAME=settings.NBIA_USERNAME,
+        NBIA_PASSWORD=settings.NBIA_PASSWORD
+    script:
+        "scripts/get_seg_summary.py"

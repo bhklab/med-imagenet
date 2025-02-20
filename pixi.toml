@@ -7,7 +7,7 @@ channels = ["conda-forge", "bioconda"]
 platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 
 [tasks]
-snake = "snakemake -s workflow/getRTSTRUCTS.smk --keep-going -c 32 --rerun-triggers mtime"
+snake = "snakemake -s workflow/getRTSTRUCTS.smk --keep-going --rerun-triggers mtime"
 
 [dependencies]
 snakemake = ">=8.28.0,<9"
