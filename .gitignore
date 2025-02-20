@@ -137,3 +137,4 @@ procdata/
 results/
 .snakemake/
 *.tsv
+results_summaries/

@@ -36,9 +36,24 @@ except (FailedQueryError, AssertionError):
         if len(files) == 1:
             raw_images = zf.read(files[0])
         else:
-            raise ValueError(
-                f"Expected a single image in zip, got {len(files)}, {files}"
+            errmsg = f"Expected a single image in zip, got {len(files)}"
+            errdict = {
+                "errmsg" : errmsg,
+                "Found files": files,
+            }
+            series_metadata = asyncio.run(
+                client._getSeries(params={"SeriesInstanceUID": snakemake.wildcards["SeriesInstanceUID"]})
             )
+            if len(series_metadata) != 1:
+                raise ValueError(
+                    "idk man something happened"
+                )
+            errdict.update(series_metadata[0])
+
+            with open(snakemake.output[0], "w") as f:
+                json.dump(errdict, f, indent=4)
+            exit(0)
+
 
 seg = load_seg_dcm(raw_images)
 
