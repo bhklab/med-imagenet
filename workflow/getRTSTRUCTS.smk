@@ -1,6 +1,8 @@
 import pandas as pd 
 from pathlib import Path
 from nbiatoolkit.settings import Settings
+# see `all_series.ipynb` for the scratch notebook to 
+# generate the `allseries.tsv` file
 allseriesdf = pd.read_csv("allseries.tsv", sep="\t", low_memory=False)
 
 supported_modalities = ["SEG"]
@@ -13,6 +15,9 @@ collections = seriesdf["Collection"].unique()
 with open("modality_counts.txt", "w") as f:
     f.write(seriesdf["Modality"].value_counts().to_string())
 
+# Expects a .env file in the same directory with the following (double underscore is a separator):
+# LOGIN__NBIA_USERNAME="..."
+# LOGIN__NBIA_PASSWORD="..."
 settings = Settings()
 rule all:
     input:
