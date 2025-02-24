@@ -153,7 +153,9 @@ rule collect_summaries:
 
                 # rename Modality_referenced to ReferencedModality
                 seg_summaries_merged.rename(columns={"Modality_referenced": "ReferencedModality"}, inplace=True)
-
+                # if any of the 'ReferencedSeriesInstanceUID' are not found in the allseriesdf, set them to "Unknown"
+                seg_summaries_merged["ReferencedSeriesInstanceUID"] = seg_summaries_merged["ReferencedSeriesInstanceUID"].fillna("Unknown")
+                seg_summaries_merged["ReferencedModality"] = seg_summaries_merged["ReferencedModality"].fillna("Unknown")
                 seg_summaries_merged.to_csv(output.collection_summary, index=False)
             else:
                 # if there is no data at all, just touch the file
