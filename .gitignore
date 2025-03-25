@@ -133,10 +133,10 @@ dmypy.json
 
 
 **/data/
-.snakemake
 procdata
 rawdata
 results
 results_summaries
-results
 notebooks/*.tsv
+.snakemake/
+*.tsv
