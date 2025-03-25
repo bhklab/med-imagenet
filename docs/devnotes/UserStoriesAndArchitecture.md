@@ -12,8 +12,7 @@ into their respective tasks of model training and feature analysis.
 
 ### Machine Learning Engineers & Data Scientists (ML/DS)
 - Develop and optimize deep learning models for medical imaging
-- Easily create and validate AI models for diagnosis and prognosis
-- Have AI-ready imaging data for rapid model prototyping
+- Create and validate AI models for diagnosis and prognosis
 - Need efficient data loading and preprocessing pipelines
 - Require standardized evaluation metrics and benchmarks
 
@@ -46,21 +45,17 @@ As a (ML/DS, CB/B), I would want to be able to
   - Access metadata programmatically
 
 As a (ML/DS, CB/B), I want a set of tools that can help me
-- download AI-ready datasets (only TCIA? should check DUAs)
-  - Access NIfTI/HDF5 images of public DICOM datasets
-  - Consistent metadata/clinical fields
-  - As similar to the raw data as possible, without too much manipulation
 - preprocess and clean medical imaging data
-  - Converting to `SimpleITK.Image` objects 
-  - Indexing and querying metadata
+  - converting to `SimpleITK.Image` objects 
+  - indexing and querying metadata
 - visualize and explore medical imaging data
   - 2D/3D visualization
-  - Interactive exploration
+  - interactive exploration
 
-As a (ML/DS, CB/B, SWE/DevOps), I want a single Python API that can
-- Load and access (potentially large) medical imaging datasets
-- Provide a consistent interface for data access and preprocessing
-- Integrate with popular deep learning frameworks (e.g. PyTorch, TensorFlow)
+As a (ML/DS, CB/B), I want a single Python API that can
+- load and access (potentially large) medical imaging datasets
+- provide a consistent interface for data access and preprocessing
+- integrate with popular deep learning frameworks (e.g. PyTorch, TensorFlow)
 
 ## User Personas Flow
 
@@ -123,8 +118,8 @@ There are two main pathways for users:
 ```mermaid
 graph TD
     subgraph External
-        TCIA[The Cancer Imaging Archive]
-        DB1[PlaceholderDB1]
+        TCIA[TCIA: The Cancer Imaging Archive]
+        DB1[NMDID: New Mexico Decedent Image Database]
         DB2[PlaceholderDB2]
         UserData[User-Provided Data]
     end
@@ -157,21 +152,8 @@ graph TD
     Indexing -->|Provides Searchable Data| Query
     Query -->|Retrieves Data| Access
     Access -->|Provides Raw Imaging Data| Convert
-    Preprocess -->|Processes AI-Ready Data| AI-Ready
-
-    Access -->|Provides AI-Ready Data| AI-Ready
 
     Convert -->|Standardized Data| Preprocess
     Preprocess -->|Processed Images| Visualize
-    
+    Preprocess -->|AI-Ready Data| AI-Ready
 ```
-## Technical Scope
-Defining granular technical requirements for each componenet
-
-### 1. Med-ImageDB
-- Input: TCIA API / List of public datasets
-- Output: Med-ImageNet index
-
-### 2. Med-ImageTools
-- Input: Raw Imaging Data / DICOM (CT, MR, PET, RTDOSE, RTSTRUCT, SEG)
-- Output: AI-Ready Data / NIfTI, HDF5

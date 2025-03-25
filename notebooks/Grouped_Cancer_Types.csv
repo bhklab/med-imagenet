@@ -1,0 +1,96 @@
+Original,Grouped
+Glioblastoma,Brain/CNS
+Glioblastoma Multiforme,Brain/CNS
+Low Grade Glioma,Brain/CNS
+High Grade Glioma,Brain/CNS
+Diffuse Midline Glioma,Brain/CNS
+Diffuse Glioma,Brain/CNS
+Astrocytoma,Brain/CNS
+Medulloblastoma,Brain/CNS
+Brain Cancer,Brain/CNS
+Meningioma,Brain/CNS
+Vestibular Schwannoma,Brain/CNS
+Lung Cancer,Lung
+Non-small Cell Lung Cancer,Lung
+Small Cell Lung Cancer,Lung
+Lung Adenocarcinoma,Lung
+Lung Squamous Cell Carcinoma,Lung
+Lung Other,Lung
+Squamous cell carcinoma of lung,Lung
+Breast Cancer,Breast
+Breast Invasive Carcinoma,Breast
+HER2+ Breast Cancer,Breast
+Prostate Cancer,Prostate
+Prostate Adenocarcinoma,Prostate
+Prostate,Prostate
+Colon Cancer,Colorectal
+Rectum Adenocarcinoma,Colorectal
+Colorectal Cancer,Colorectal
+Adenocarcinoma Colon,Colorectal
+Colon adenocarcinoma,Colorectal
+Adenocarcinoma of colon,Colorectal
+Adenocarcinoma of rectum,Colorectal
+Pancreatic Cancer,Pancreas
+Pancreatic Ductal Adenocarcinoma,Pancreas
+Pancreatic adenocarcinoma,Pancreas
+Adenocarcinoma Pancreas,Pancreas
+Adenocarcinoma of pancreas,Pancreas
+Pancreas Cancer,Pancreas
+Liver Cancer,Liver
+Hepatocellular carcinoma,Liver
+Liver Hepatocellular Carcinoma,Liver
+Liver,Liver
+Hepatoblastoma,Liver
+Head and Neck Cancer,Head and Neck
+Head and Neck Squamous Cell Carcinoma,Head and Neck
+Head and Neck Carcinomas,Head and Neck
+Oropharyngeal Cancer,Head and Neck
+Nasopharyngeal,Head and Neck
+Major Salivary Gland,Head and Neck
+Kidney Cancer,Kidney
+Kidney Chromophobe,Kidney
+Kidney Clear Cell Renal Cell Carcinoma,Kidney
+Kidney Renal Papillary Cell Carcinoma,Kidney
+Kidney Renal Clear Cell Carcinoma,Kidney
+Cervical Cancer,GYN
+Cervical Squamous Cell Carcinoma,GYN
+Endocervical Adenocarcinoma,GYN
+Ovarian Cancer,GYN
+High grade serous ovarian cancer,GYN
+Uterine Corpus Endometrial Carcinoma,GYN
+Uterine Sarcoma,GYN
+Corpus Endometrial Carcinoma,GYN
+Ovarian Serous Cystadenocarcinoma,GYN
+Leukemia,Hematologic
+Acute Myeloid Leukemia,Hematologic
+Hodgkin Lymphoma,Hematologic
+Lymphoma,Hematologic
+Diffuse Large B-Cell Lymphoma,Hematologic
+Leukemia & Lymphoma Cancers,Hematologic
+Multiple Myeloma,Hematologic
+Melanoma,Skin
+Cutaneous Melanoma,Skin
+Skin Cancer,Skin
+Osteosarcoma,Sarcoma
+Sarcomas,Sarcoma
+Soft Tissue,Sarcoma
+Soft-tissue Sarcoma,Sarcoma
+Ewing sarcoma - Peripheral PNET,Sarcoma
+Neuroendocrine Tumors (all sites),Neuroendocrine
+Neuroendocrine cancer (NOS),Neuroendocrine
+Stomach Adenocarcinoma,Stomach/Esophagus
+Esophageal Carcinoma,Stomach/Esophagus
+Gastroesophageal Cancer,Stomach/Esophagus
+Bladder Cancer,Bladder
+Bladder Urothelial Carcinoma,Bladder
+Bladder Endothelial Carcinoma,Bladder
+Urothelial - bladder cancer (NOS),Bladder
+Thyroid Cancer,Thyroid
+Thyroid Carcinoma,Thyroid
+Adrenocortical Carcinoma,Adrenal
+Non-Cancer,Misc/Benign/Control
+Healthy Controls (non-cancer),Misc/Benign/Control
+Phantom,Misc/Benign/Control
+COVID-19 (non-cancer),Misc/Benign/Control
+Pathologically Benign,Misc/Benign/Control
+Lymphadenopathy (non-cancer),Misc/Benign/Control
