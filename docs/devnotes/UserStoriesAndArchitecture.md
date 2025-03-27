@@ -18,7 +18,7 @@ pain points illustrate the key barriers that Med-ImageNet aims to address:
   difficult to access programmatically. This slows down research and introduces 
   manual steps in data acquisition workflows.
 
-- **Limited Metadta Querying Capabilities:** Finding relevant datasets based on 
+- **Limited Metadata Querying Capabilities:** Finding relevant datasets based on 
   imaging modality, disease type, or annotation availability is often difficult. 
   Users typically need to manually inspect metadata or download large index files 
   to perform even basic filtering tasks.
