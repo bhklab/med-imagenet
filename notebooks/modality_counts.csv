@@ -1,0 +1,12 @@
+body_group,CT,MR,PT,SEG,RTSTRUCT
+Abdomen/Pelvis,15194,29591,694,706,1832
+Bone,0,0,0,0,4
+Brain,138,7751,0,1660,0
+Breast,608,47936,976,8451,0
+Extremities,74,550,55,0,306
+Head/Neck,5816,2640,2025,1089,1768
+Lung/Thorax,15717,217,771,8156,1065
+Other,0,21,0,0,0
+Phantom,57,409,64,0,34
+Spine,82,877,0,51,0
+Whole Body,394,27,227,0,0
