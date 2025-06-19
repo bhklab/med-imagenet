@@ -973,7 +973,24 @@
 - be able to download 'newer' series if projects are ongoing</p>
 <p>database building:
 - use something like tcia's <a href="https://github.com/jjjermiah/nbia-toolkit/blob/d8f4bb401584d3d94072ed8708eddc5936b5fda2/src/nbiatoolkit/utils/nbia_endpoints.py#L41">updated series endpoint</a> to only update the new series every month or so
-- to prevent running a huge job </p>
+- to prevent running a huge job</p>
+<h1 id="todo">TODO:<a class="headerlink" href="#todo" title="Anchor link to this section for reference">#</a></h1>
+<ul>
+<li>Setup releases on this repo for every database scraped from TCIA (crawled)</li>
+<li>options for this:<ul>
+<li>download everything and crawl :(</li>
+<li>be able to scrape from the tcia 'GetDicomTags' Endpoint &gt; create DICOM file (without pixel data)</li>
+</ul>
+</li>
+<li>Setup a way to query the crawl db</li>
+<li>MVP: some minimal query options, to be extended in the future</li>
+<li>Use the output of the query with NBIAToolkit to download</li>
+</ul>
+<h2 id="stretch-goal">Stretch-goal<a class="headerlink" href="#stretch-goal" title="Anchor link to this section for reference">#</a></h2>
+<p>create a quick website using streamlit that uses the crawl db and lets users investigate data 
+- query the db really quickly
+- plot some metrics
+- potentially generate manifest easily</p>
 
 
 
