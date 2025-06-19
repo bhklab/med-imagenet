@@ -32,7 +32,6 @@ med-imagenet download <Collection> --query RTSTRUCTS where "GTVp" in "ROINames" 
 ```
 
 
-
 complicated but useful approach:
 
 ```console
@@ -46,4 +45,30 @@ download stuff:
 
 database building:
 - use something like tcia's [updated series endpoint](https://github.com/jjjermiah/nbia-toolkit/blob/d8f4bb401584d3d94072ed8708eddc5936b5fda2/src/nbiatoolkit/utils/nbia_endpoints.py#L41) to only update the new series every month or so
-- to prevent running a huge job 
+- to prevent running a huge job
+
+# TODO:
+
+- Setup releases on this repo for every database scraped from TCIA (crawled)
+  - options for this:
+    - download everything and crawl :(
+    - be able to scrape from the tcia 'GetDicomTags' Endpoint > create DICOM file (without pixel data)
+- Setup a way to query the crawl db
+  - MVP: some minimal query options, to be extended in the future
+- Use the output of the query with NBIAToolkit to download
+
+
+## Stretch-goal
+
+create a quick website using streamlit that uses the crawl db and lets users investigate data 
+- query the db really quickly
+- plot some metrics
+- potentially generate manifest easily
+
+
+
+
+
+
+
+
