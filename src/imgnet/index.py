@@ -1,12 +1,16 @@
 import asyncio
 from pathlib import Path
 
+from tqdm import tqdm
 import pandas as pd
 from pydicom import dcmread
 from imgtools.dicom.crawl import Crawler
 from nbiatoolkit import NBIA_ENDPOINT
 from nbiatoolkit.nbia import NBIAClient
 from nbiatoolkit.dicomtags.tags import generateFileDatasetFromTags
+
+from loggers import logger
+
 
 def index_collection(client: NBIAClient, collection: str, output_path: Path) -> None:
     """
@@ -17,10 +21,12 @@ def index_collection(client: NBIAClient, collection: str, output_path: Path) -> 
         collection: str
         output_path: Path
     """
-
     series = client.getSeries({'Collection': collection})
+    logger.info(f"Indexing collection {collection}, {len(series)} series found")
 
-    for s in series:
+    (output_path / collection / "images").mkdir(parents=True, exist_ok=True)
+
+    for s in tqdm(series, desc="Downloading Series"):
         # Need to download modalities where reference series is needed
         if s["Modality"] not in ["CT", "PT", "MR"]:
             sop_uid = client.getSOPIDs(s)
@@ -39,11 +45,13 @@ def index_collection(client: NBIAClient, collection: str, output_path: Path) -> 
             tags_df = pd.DataFrame(tags)
             ds = generateFileDatasetFromTags(tags_df)
 
-        ds.save_as(output_path / collection / f"{s['SeriesInstanceUID']}.dcm", enforce_file_format=False)
+        ds.save_as(output_path / collection / "images" / f"{s['SeriesInstanceUID']}.dcm", enforce_file_format=False)
 
-
+    logger.info(f"Crawling collection {collection}")
     crawler = Crawler(output_path / collection, force=True)
     crawler.crawl()
+
+    logger.info(f"Finished indexing collection {collection}, output path: {output_path / collection}")
 
 if __name__ == "__main__":
     client = NBIAClient()
