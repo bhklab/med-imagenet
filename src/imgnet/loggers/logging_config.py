@@ -16,7 +16,7 @@ from .processors import (
 )
 
 VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
-DEFAULT_LOG_LEVEL = "WARNING"
+DEFAULT_LOG_LEVEL = "INFO"
 
 LOG_DIR_NAME = Path(".imgnet/logs")
 
