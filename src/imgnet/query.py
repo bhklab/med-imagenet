@@ -7,14 +7,14 @@ import json
 from rich import print 
 
 ROOT_DIR = Path("indexed_datasets")
-SUPPORTED_COLLECTIONS = ["4D-Lung", "Adrenal-ACC-Ki67-Seg"]
+SUPPORTED_COLLECTIONS = ["4D-Lung", "Adrenal-ACC-Ki67-Seg", "C4KC-KiTS"]
 
 @dataclass
 class Rule:
     tag: str
     value: str | list[str]
     def evaluate(self, dicom_element: dict)->bool:
-        tag_values = dicom_element[self.tag]
+        tag_values = dicom_element.get(self.tag)
         if isinstance(tag_values, str):
             tag_values = [tag_values]
         patterns = self.value
@@ -22,7 +22,7 @@ class Rule:
             patterns = [self.value]
         for tag_value in tag_values:
             for pattern in patterns:
-                if re.search(pattern, tag_value) is not None:
+                if re.search(pattern, tag_value):
                     return True
         return False
 
@@ -46,7 +46,7 @@ class ValidQuery(BaseModel):
         default=None, 
         examples=[
             {
-                "RTSTRUCT": "ROINames == ['lung', 'lung*']",
+                "RTSTRUCT": "ROINames == ['lung', 'lung.*']",
                 "MR": ["ImageType=='PRIMARY'", 
                        "PixelPaddingValue == 1"]
                 }])
@@ -135,7 +135,7 @@ def process_query(query: ValidQuery) -> dict[str, list[str]]:
     """Given a ValidQuery, returns a dictionary file containing the seriesUID for each series
     matching the query by collection."""
     collections = query.collections
-    modalities = query.modalities
+    modality_queries = query.modalities
     rules = query.rules
 
     matches = {}
@@ -143,8 +143,8 @@ def process_query(query: ValidQuery) -> dict[str, list[str]]:
         collections = SUPPORTED_COLLECTIONS
     if isinstance(collections, str):
         collections = [collections]
-    if isinstance(modalities, str):
-        modality_queries = [modalities]
+    if isinstance(modality_queries, str):
+        modality_queries = [modality_queries]
     
     for collection in collections:
         # Get index csv
@@ -167,7 +167,7 @@ def process_query(query: ValidQuery) -> dict[str, list[str]]:
 
             for key in crawl_db[series]:
                 # The crawldb is structured weird, there's always an extra layer in between
-                # the serieduid and the actual metadata associated with it.
+                # the seriesuid and the actual metadata associated with it.
                 # This is just a easy workaround.
                 dicom = crawl_db[series][key]
             
@@ -189,7 +189,7 @@ def process_query(query: ValidQuery) -> dict[str, list[str]]:
     return matches
                 
 
-query = ValidQuery(collections="all", modalities="CT,RTSTRUCT", rules={"RTSTRUCT": "ROINames == ['lung.*', 'lung']"})
+query = ValidQuery(collections="all", modalities=["CT,RTSTRUCT", "CT,SEG"], rules={"CT": "BodyPartExamined == Adrenal", "SEG": "ROINames == Mass","RTSTRUCT": "ROINames == ['Lung']"})
 
 result = process_query(query)
 
