@@ -1,0 +1,20 @@
+[project]
+name = "imgnet"
+version = "0.1"
+description = ""
+authors = [
+    { name = "Joshua Siraj", email = "joshua.siraj@uhn.ca" },
+    { name = "Declan Korda", email = "dkorda@protonmail.com" }
+]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+
+dependencies = [
+    "med-imagetools >=2.11.1, <3"
+]
+
+
+
+[project.scripts]
+imgnet = "imgnet.cli.__main__:cli"

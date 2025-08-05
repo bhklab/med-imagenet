@@ -5,26 +5,114 @@ from pathlib import Path
 import re
 import json
 from rich import print 
+from enum import Enum
+
 
 ROOT_DIR = Path("indexed_datasets")
 SUPPORTED_COLLECTIONS = ["4D-Lung", "Adrenal-ACC-Ki67-Seg", "C4KC-KiTS"]
+
+class RuleError(Exception):
+    """Exception raised for invalid rules.
+
+    Attributes
+    ----------
+        message: str 
+            explanation of the error.
+    """
+
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
 
 @dataclass
 class Rule:
     tag: str
     value: str | list[str]
+    comparison: str
     def evaluate(self, dicom_element: dict)->bool:
-        tag_values = dicom_element.get(self.tag)
-        if isinstance(tag_values, str):
-            tag_values = [tag_values]
-        patterns = self.value
-        if isinstance(self.value, str):
-            patterns = [self.value]
-        for tag_value in tag_values:
-            for pattern in patterns:
-                if re.search(pattern, tag_value):
-                    return True
-        return False
+        tag_value = dicom_element.get(self.tag)
+        if isinstance(tag_value, str):
+            # If it starts with "[" and ends with "]", treat as a list
+            if tag_value.strip().startswith('[') and tag_value.strip().endswith(']'):
+                # Extract quoted and unquoted items
+                matches = re.findall(r'''(['"])(.*?)\1|([^'",\s\[\]]+)''', tag_value)
+                tag_value = [m[1] if m[1] else m[2] for m in matches]
+            else:
+                # Treat the entire string as a single item
+                tag_value = [tag_value.strip()]
+        match self.comparison:
+            case "==" | "=":
+                patterns = self.value
+                if isinstance(self.value, str):
+                    patterns = [self.value]
+                for element in tag_value:
+                    for pattern in patterns:
+                        if re.search(pattern, element):
+                            return True
+                return False
+            case ">":
+                for element in tag_value:
+                    if element == "" or element is None:
+                        return False
+                    try:
+                        comparison_value = float(self.value)
+                        element = float(element)
+                        if element <= comparison_value:
+                            return False
+                    except ValueError:
+                        raise RuleError("'>' comparisons only support numeric values."
+                                        +f"\nInput: {self.tag}: {tag_value}, > {self.value}")
+                return True
+            case "<":
+                for element in tag_value:
+                    if element == "" or element is None:
+                        return False
+                    try:
+                        comparison_value = float(self.value)
+                        element = float(element)
+                        if element >= comparison_value:
+                            return False
+                    except ValueError:
+                        raise RuleError("'>' comparisons only support numeric values."
+                                        +f"\nInput: {self.tag}: {tag_value}, > {self.value}")
+                return True
+            case ">=":
+                for element in tag_value:
+                    if element == "" or element is None:
+                        return False
+                    try:
+                        comparison_value = float(self.value)
+                        element = float(element)
+                        if element < comparison_value:
+                            return False
+                    except ValueError:
+                        raise RuleError("'>' comparisons only support numeric values."
+                                        +f"\nInput: {self.tag}: {tag_value}, > {self.value}")
+                return True
+            case "<=":
+                for element in tag_value:
+                    if element == "" or element is None:
+                        return False
+                    try:
+                        comparison_value = float(self.value)
+                        element = float(element)
+                        if element > comparison_value:
+                            return False
+                    except ValueError:
+                        raise RuleError("'>' comparisons only support numeric values."
+                                        +f"\nInput: {self.tag}: {tag_value}, > {self.value}")
+                return True
+            case "!=":
+                patterns = self.value
+                if isinstance(self.value, str):
+                    patterns = [self.value]
+                for element in tag_value:
+                    for pattern in patterns:
+                        if re.search(pattern, element):
+                            return True
+                return False
+                
+
 
 class ValidQuery(BaseModel):
     collections: str | list[str] = Field(
@@ -81,6 +169,11 @@ class ValidQuery(BaseModel):
 
             rule_parts = rule.split(" ", 2)
             tag = rule_parts[0]
+            comparison = rule_parts[1]
+            if comparison not in ["=", "==", "<", ">", "<=", ">=", "!="]:
+                raise ValueError(f"{comparison} is not a supported comparison type."
+                                 +"\n supported comparison types: ==, <, >, <=, >=, !=")
+
             value = rule_parts[2]
             if value[0] == '[':
                 # there is a list of patterns instead of just one.
@@ -89,7 +182,7 @@ class ValidQuery(BaseModel):
                 value = [m[1] for m in matches]
             else: 
                 value = value.strip("\'\"")
-            return Rule(tag=tag, value=value)
+            return Rule(tag=tag, value=value, comparison=comparison)
         return_value = {}
         # Check if v is of type dict[str, str]
         if (
@@ -131,79 +224,108 @@ class ValidQuery(BaseModel):
         else: 
             raise ValueError(f"Invalid rules: {v}.")
 
-def process_query(query: ValidQuery) -> dict[str, list[str]]:
-    """Given a ValidQuery, returns a dictionary file containing the seriesUID for each series
-    matching the query by collection."""
-    collections = query.collections
-    modality_queries = query.modalities
-    rules = query.rules
+    def process(self) -> dict[str, list[str]]:
+        """Given a ValidQuery, returns a dictionary file containing the seriesUID for each series
+        matching the query by collection."""
+        collections = self.collections
+        modality_queries = self.modalities
+        rules = self.rules
 
-    matches = {}
-    if collections == "all":
-        collections = SUPPORTED_COLLECTIONS
-    if isinstance(collections, str):
-        collections = [collections]
-    if isinstance(modality_queries, str):
-        modality_queries = [modality_queries]
-    
-    for collection in collections:
-        # Get index csv
-        csv_path = ROOT_DIR / ".imgtools"/ collection / "index.csv"
-
-        # Access crawl json
-        with open(ROOT_DIR / ".imgtools" / collection / "crawl_db.json", "r") as f:
-            crawl_db = json.load(f)
-        interlacer = Interlacer(csv_path)
-        modality_matches = []
+        matches = {}
+        if collections == "all":
+            collections = SUPPORTED_COLLECTIONS
+        if isinstance(collections, str):
+            collections = [collections]
+        if isinstance(modality_queries, str):
+            modality_queries = [modality_queries]
         
-        for query in modality_queries:
-            if query == 'all':
-                query_result = interlacer.query_all()
-            else:
-                query_result = interlacer.query(query)
-            modality_matches += [node.SeriesInstanceUID for group in query_result for node in group]
-        result = []
-        for series in modality_matches:
+        for collection in collections:
+            print(collection)
+            # Get index csv
+            csv_path = ROOT_DIR / ".imgtools"/ collection / "index.csv"
 
-            for key in crawl_db[series]:
-                # The crawldb is structured weird, there's always an extra layer in between
-                # the seriesuid and the actual metadata associated with it.
-                # This is just a easy workaround.
-                dicom = crawl_db[series][key]
+            # Access crawl json
+            with open(ROOT_DIR / ".imgtools" / collection / "crawl_db.json", "r") as f:
+                crawl_db = json.load(f)
+            interlacer = Interlacer(csv_path)
+            modality_matches = []
             
-            modality = dicom['Modality']
-            modality_rules = rules.get(modality)
-            if isinstance(modality_rules, Rule):
-                modality_rules = [rules[modality]]
-            
-            accept_series = True
-            if modality_rules is not None:
-                for rule in modality_rules:
-                    if not rule.evaluate(dicom):
-                        # a series is only added to the final query output if it follows ALL the rules.
-                        accept_series = False
-                        break
-            if accept_series:
-                result.append(series)
-        matches[collection] = result
-    return matches
+            for query in modality_queries:
+                if query == 'all':
+                    query_result = interlacer.query_all()
+                else:
+                    query_result = interlacer.query(query)
+                modality_matches += [[node.SeriesInstanceUID for node in group] for group in query_result]
+            result = []
+            for group in modality_matches:
+                for series in group:
+                    
+                    for key in crawl_db[series]:
+                        # The crawldb is structured weird, there's always an extra layer in between
+                        # the seriesuid and the actual metadata associated with it.
+                        # This is just a easy workaround.
+                        dicom = crawl_db[series][key]
+                    
+                    modality = dicom['Modality']
+                    modality_rules = rules.get(modality)
+                    if isinstance(modality_rules, Rule):
+                        modality_rules = [rules[modality]]
+                    
+                    accept_series = True
+                    if modality_rules is not None:
+                        for rule in modality_rules:
+                            if not rule.evaluate(dicom):
+                                # a series is only added to the final query output if it follows ALL the rules.
+                                accept_series = False
+                                break
+                    if accept_series:
+                        result.append(series)
+                    elif series == group[0]:
+                        # if the root node (the first element in the list) is not selected by the query, the children will be skipped.
+                        # this prevents the selection of masks which reference a dicom that was not selected.
+                        break 
+            matches[collection] = result
+        return matches
+                    
+
+if __name__ == "__main__":
+    query = ValidQuery(
+                collections="all", 
+                modalities=["CT,SEG", "CT,RTSTRUCT"], 
+                rules={
+                    "CT": "PixelSpacing < 0.9",
+                    "SEG": "ROINames == 'Mass'",
+                    "RTSTRUCT": "ROINames == ['Lung']"
+                    })
+
+
+
+    result = query.process()
+
+    for key in result:
+        print(key)
+        for item in result[key]:
+            print(f"    {item}")
+
+
+
+
                 
 
-query = ValidQuery(collections="all", modalities=["CT,RTSTRUCT", "CT,SEG"], rules={"CT": "BodyPartExamined == Adrenal", "SEG": "ROINames == Mass","RTSTRUCT": "ROINames == ['Lung']"})
+"""
+query
+- add < and > 
+- fix imgnet.py query function
+- pytests for query
+- add cli entrypoint # UGHHH I HAVE TO SET UP CLICK
+- pydantic json schema stuff (just save json and schema in users output dir)
+- add downloading of queried stuff # i think josh is doing ts?
+index all datasets
+- 
 
-result = process_query(query)
+Josh vacay in 2 weeks
 
-for key in result:
-    print(key)
-    for item in result[key]:
-        print(f"    {item}")
-
-
-
-
-                
-
-
+"""
 
 
 
