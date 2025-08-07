@@ -145,9 +145,5 @@ def query(
     imgnet = ImgNet(output_path / "raw_data", client)
     results = imgnet.query(valid_query, download)
 
-    pd.DataFrame([
-        {"collection": k, "SeriesUID": v}
-        for k, values in results.items()
-        for v in values
-    ]).to_csv(output_path / "selected_seriesuids.csv", index=False)
-    logger.info(f"Saved selected SeriesUIDs to {output_path / 'selected_seriesuids.csv'}.")
+    results.to_csv(output_path / 'selected_dicoms.csv')
+    logger.info(f"Saved selected SeriesUIDs to {output_path / 'selected_dicoms.csv'}.")

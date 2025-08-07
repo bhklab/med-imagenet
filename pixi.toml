@@ -10,6 +10,7 @@ platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 
 [dependencies]
 python = ">=3.10,<3.13"
+pytest = ">=8.4.1,<9"
 
 [pypi-dependencies]
 imgnet = { path = ".", editable = true }
