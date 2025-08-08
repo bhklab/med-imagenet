@@ -282,7 +282,7 @@ class ValidQuery(BaseModel):
             modality_matches = []
             
             for query in modality_queries:
-                if query == 'all':
+                if query == 'all' or query is None:
                     query_result = interlacer.query_all()
                 else:
                     query_result = interlacer.query(query)

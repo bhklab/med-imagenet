@@ -37,7 +37,7 @@ from nbiatoolkit.nbia import NBIAClient
     "-c",
     type=str,
     multiple=True,
-    default = "all",
+    default = ["all"],
     help = "List of collections to query, or 'all' to query every collection (example: `-c collection1 collection2`)"
 )
 @click.option(
@@ -45,7 +45,7 @@ from nbiatoolkit.nbia import NBIAClient
     "-m",
     type=str,
     multiple=True,
-    default=None,
+    default=['all'],
     help="List of modality queries (example: `-m CT,RTSTRUCT CT,SEG`)"
 )
 @click.option(
@@ -130,7 +130,15 @@ def query(
             valid_query = ValidQuery.model_validate_json(f.read())
         logger.info(f"Loaded ValidQuery from {input_path}.")
     else: 
-        valid_query = ValidQuery(collections=collections, modalities=modalities, rules=json.loads(rules))
+        if rules is not None:
+            rules = json.loads(rules)
+        if len(collections) == 1:
+            collections = collections[0]
+        elif isinstance(collections, tuple):
+            collections = list(collections)
+        if isinstance(modalities, tuple):
+            modalities = list(modalities)
+        valid_query = ValidQuery(collections=collections, modalities=modalities, rules=rules)
         logger.info(f"Generated ValidQuery: \ncollections: {collections}\nmodalities: {modalities}\nrules: {rules}")
     
     with open(output_path / "valid_query_schema.json", "w") as f:
