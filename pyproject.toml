@@ -18,3 +18,7 @@ dependencies = [
 
 [project.scripts]
 imgnet = "imgnet.cli.__main__:cli"
+
+# pyproject.toml
+[tool.mypy]
+ignore_missing_imports = true

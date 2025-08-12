@@ -28,7 +28,7 @@ def test_query_collection_validation(
     collections: str | list[str], 
     modalities: str | list[str], 
     rules: dict[str, Rule | list[Rule]], 
-    exception: Exception):
+    exception: Exception) -> None:
     """Test that all Pydantic fields are properly validated."""
     if exception:
         with pytest.raises(exception):
@@ -36,3 +36,18 @@ def test_query_collection_validation(
     else:
         ValidQuery(collections=collections, modalities=modalities, rules=rules) 
 
+@pytest.mark.parametrize("collections, modalities, rules, result", [
+    # Each test is designed to only return one result. 
+    (["4D-Lung"], "CT", {"CT": "SeriesInstanceUID == 1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985"}, ["1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985"]),
+    (["4D-Lung", "Adrenal-ACC-Ki67-Seg"], "CT", {"CT": "SeriesInstanceUID == 1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985"}, ["1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985"]),
+    ("all", "CT", {"CT": "SeriesInstanceUID == 1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985"}, ["1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985"]),
+    ("all", "CT,RTSTRUCT", {"CT": "SeriesInstanceUID == 1.3.6.1.4.1.14519.5.2.1.6834.5010.102533678118509892496905762069", "RTSTRUCT": "Modality == CT"}, ["1.3.6.1.4.1.14519.5.2.1.6834.5010.102533678118509892496905762069"])    
+])
+def test_query_process(
+        collections: str | list[str],
+        modalities: str | list[str],
+        rules: dict[str, Rule | list[Rule]],
+        result: list[str]
+) -> None:
+    df = ValidQuery(collections=collections, modalities=modalities, rules=rules).process()
+    assert df["SeriesInstanceUID"].tolist() == result # check if the query returns the expected series.

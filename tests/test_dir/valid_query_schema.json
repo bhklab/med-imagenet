@@ -3,6 +3,7 @@
     "Rule": {
       "properties": {
         "tag": {
+          "description": "The DICOM tag the rule applies to.",
           "title": "Tag",
           "type": "string"
         },
@@ -18,9 +19,11 @@
               "type": "array"
             }
           ],
+          "description": "The value to compare against.",
           "title": "Value"
         },
         "comparison": {
+          "description": "The comparison type. Note that == and != both interpret the comparison value as a regex pattern.",
           "title": "Comparison",
           "type": "string"
         }

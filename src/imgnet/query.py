@@ -5,8 +5,9 @@ from pathlib import Path
 import re
 import json
 from rich import print 
-from enum import Enum
 import pandas as pd
+
+from typing import Any as any
 
 
 ROOT_DIR = Path("indexed_datasets")
@@ -50,17 +51,17 @@ class RulesValidationError(ValidQueryError):
         self.message = message
         super().__init__(self.message)
 
+
 class RulesValidationParsingError(RulesValidationError):
     """Exception raised when parsing a Rule from string fails during rules field validation."""
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
 
-@dataclass
-class Rule:
-    tag: str
-    value: str | list[str]
-    comparison: str
+class Rule(BaseModel):
+    tag: str = Field(description="The DICOM tag the rule applies to.")
+    value: str | list[str] = Field(description="The value to compare against.")
+    comparison: str = Field(description="The comparison type. Note that == and != both interpret the comparison value as a regex pattern.")
     def evaluate(self, dicom_element: dict)->bool:
         tag_value = dicom_element.get(self.tag)
         if tag_value is None:
@@ -85,6 +86,8 @@ class Rule:
                             return True
                 return False
             case ">":
+                if isinstance(self.value, list):
+                    raise InvalidComparisonError("> comparison only compatible with numeric arguments, not list.")
                 for element in tag_value:
                     if element == "" or element is None:
                         return False
@@ -98,6 +101,8 @@ class Rule:
                                         +f"\nInput: {self.tag}: {tag_value}, > {self.value}")
                 return True
             case "<":
+                if isinstance(self.value, list):
+                    raise InvalidComparisonError("< comparison only compatible with numeric arguments, not list.")
                 for element in tag_value:
                     if element == "" or element is None:
                         return False
@@ -111,6 +116,8 @@ class Rule:
                                         +f"\nInput: {self.tag}: {tag_value}, > {self.value}")
                 return True
             case ">=":
+                if isinstance(self.value, list):
+                    raise InvalidComparisonError(">= comparison only compatible with numeric arguments, not list.")
                 for element in tag_value:
                     if element == "" or element is None:
                         return False
@@ -124,6 +131,8 @@ class Rule:
                                         +f"\nInput: {self.tag}: {tag_value}, > {self.value}")
                 return True
             case "<=":
+                if isinstance(self.value, list):
+                    raise InvalidComparisonError("<= comparison only compatible with numeric arguments, not list.")
                 for element in tag_value:
                     if element == "" or element is None:
                         return False
@@ -145,6 +154,7 @@ class Rule:
                         if re.match(pattern, element):
                             return False
                 return True
+        return False
                 
 
 
@@ -199,7 +209,7 @@ class ValidQuery(BaseModel):
     
     @field_validator("rules", mode="before")
     def validate_rules(cls, v: any
-                       )-> dict[str, Rule | list[Rule]]:
+                       )-> dict[str, Rule | list[Rule]] | None:
         if v is None:
             return None
         def parse_rule(rule:str)->Rule:
@@ -215,43 +225,59 @@ class ValidQuery(BaseModel):
             if comparison not in ["=", "==", "<", ">", "<=", ">=", "!="]:
                 raise RulesValidationParsingError(f"{comparison} is not a supported comparison type."
                                  +"\n supported comparison types: ==, <, >, <=, >=, !=")
-
-            value = rule_parts[2]
-            if value[0] == '[':
+            raw_value = rule_parts[2]
+            # I dislike static typing.
+            value: list[str] | str
+            if raw_value[0] == '[':
                 # there is a list of patterns instead of just one.
                 # Using regex to parse the list and get each individual element.
-                matches = re.findall(r'''(['"])(.*?)\1''', value)
+                matches = re.findall(r'''(['"])(.*?)\1''', raw_value)
                 value = [m[1] for m in matches]
             else: 
-                value = value.strip("\'\"")
+                value = raw_value.strip("\'\"")
             return Rule(tag=tag, value=value, comparison=comparison)
-        return_value = {}
+        return_value: dict[str, Rule | list[Rule]] = {}
         if isinstance(v, dict):
             for key, val in v.items():
                 if isinstance(key, str):
-                    if isinstance(val, str):
+                    if isinstance(val, dict):
+                        # It's a json object so we have to convert using pydantic model validation.
+                        return_value[key] = Rule.model_validate(val)
+                    elif isinstance(val, str):
                         return_value[key] = parse_rule(val)
-                    # check if val is a list[str]
-                    elif isinstance(val, list) and all(isinstance(list_val, str) for list_val in val):
-                        return_value[key] = [parse_rule(list_val) for list_val in val]
-                    # check if val is a Rule or list[Rule]
-                    elif isinstance(val, Rule) or (isinstance(val, list) and all(isinstance(list_val, Rule) for list_val in val)):
+                    elif isinstance(val, Rule):
                         return_value[key] = val
+                    # check if val is a list
+                    elif isinstance(val, list):
+                        # check if val is a list[dict]
+                        if all(isinstance(list_val, dict) for list_val in val):
+                            return_value[key] = [Rule.model_validate(list_val) for list_val in val]
+                        # check if val is a list[str]
+                        elif all(isinstance(list_val, str) for list_val in val):
+                            return_value[key] = [parse_rule(list_val) for list_val in val]
+                        # check if val is a list[Rule]
+                        elif all(isinstance(list_val, Rule) for list_val in val):
+                            return_value[key] = val
+                        else:
+                            raise RulesValidationError(f"rules dict[str, str | list[str]| Rule | list[Rule]], got dict[str, str | list[str]| Rule | list[Rule] | list[{type(val[0])}]] instead.")
                     else:
-                        raise RulesValidationError(f"rules must be dict[str, str | list[str]], got dict[str, str | list[str] | {type(val)}] instead.")
+                        raise RulesValidationError(f"rules must be dict[str, str | list[str]| Rule | list[Rule]], got dict[str, str | list[str] | Rule | list[Rule]]| {type(val)}] instead.")
                 else: 
                     raise RulesValidationError(f"rules must be dict[str, str | list[str]], got dict[{type(key)}, str | list[str]] instead.")
         # Check if return_value is of type dict[str, Rule|list[Rule]]
         # if return value is a dict, and that dict contains keys of type string and the values are either Rule or list[Rule]
         if (
             isinstance(return_value, dict)
-                and (all(isinstance(key, str) 
-                         and (isinstance(val, Rule)
-                              or isinstance(val, list) 
-                                and all(isinstance(list_val, Rule) 
-                                for list_val in val)))
-                         for key, val in return_value.items())
-           ):
+            and all(
+                isinstance(key, str)
+                and (
+                    isinstance(val, Rule)
+                    or (isinstance(val, list) and all(isinstance(list_val, Rule) for list_val in val))
+                    if isinstance(val, (Rule, list)) else False
+                )
+                for key, val in return_value.items()
+            )
+        ):
             return return_value
         else: 
             raise RulesValidationError(f"Invalid rules: {v}.")
@@ -302,7 +328,7 @@ class ValidQuery(BaseModel):
                     if rules:
                         modality_rules = rules.get(modality)
                         if isinstance(modality_rules, Rule):
-                            modality_rules = [rules[modality]]
+                            modality_rules = [modality_rules]
                         if modality_rules:
                             for rule in modality_rules:
                                 if not rule.evaluate(dicom):

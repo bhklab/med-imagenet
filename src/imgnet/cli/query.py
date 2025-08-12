@@ -5,7 +5,6 @@ from imgnet.query import ValidQuery
 from imgnet.loggers import logger
 from pathlib import Path
 import json
-import pandas as pd
 from nbiatoolkit.nbia import NBIAClient
 
 @click.command(no_args_is_help=True)

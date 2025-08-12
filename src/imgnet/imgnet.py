@@ -1,12 +1,9 @@
 from pathlib import Path
 
 from pydicom import dcmread
-import pandas as pd
 from nbiatoolkit.nbia import NBIAClient
-from nbiatoolkit import NBIA_ENDPOINT
 
 from imgnet.query import ValidQuery
-import json
 
 from imgnet.loggers import logger
 
