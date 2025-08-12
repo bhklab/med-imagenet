@@ -6,19 +6,21 @@ import shutil
 from imgnet.cli.query import query as query_cli
 
 
-def test_query_cli():
+def test_query_cli_from_json():
     runner = CliRunner()
     result = runner.invoke(
         query_cli,
         [
             "tests/test_dir",
-            "-i"
+            "-i",
             "tests/test_dir/valid_query.json"
         ]
     )
 
     assert result.exit_code==0, f"Loading from json failed: {result.output}"
 
+def test_query_cli_options():
+    runner = CliRunner()
     result = runner.invoke(
         query_cli,
         [
@@ -33,6 +35,8 @@ def test_query_cli():
     )
     assert result.exit_code==0, f"Query from cli failed: {result.output}"
 
+def test_query_cli_download():
+    runner = CliRunner()
     result = runner.invoke(
         query_cli,
         [
@@ -43,7 +47,7 @@ def test_query_cli():
             "CT,RTSTRUCT",
             "-r",
             '{"CT": "SeriesInstanceUID == 1.3.6.1.4.1.14519.5.2.1.6834.5010.102533678118509892496905762069", "RTSTRUCT": "Modality == CT"}'
-            "--download"
+            #"--download"
         ]
     )
     shutil.rmtree("tests/test_dir/raw_data", ignore_errors=True)

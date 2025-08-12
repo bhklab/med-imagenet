@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from pathlib import Path
 import re
 import json
-from rich import print 
 import pandas as pd
 
 from typing import Any as any
@@ -371,13 +370,6 @@ if __name__ == "__main__":
 
 """
 query
-- add < and > 
-- fix imgnet.py query function
-- pytests for query
-- add cli entrypoint # UGHHH I HAVE TO SET UP CLICK
-- pydantic json schema stuff (just save json and schema in users output dir)
-- add downloading of queried stuff # i think josh is doing ts?
-index all datasets
 - 
 
 Josh vacay in 2 weeks
