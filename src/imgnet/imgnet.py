@@ -10,7 +10,7 @@ import pandas as pd
 
 class ImgNet:
     def __init__(self, output_path: Path, client: NBIAClient):
-        self.output_path = output_path
+        self.output_path = Path(output_path)
         self.client = client
 
     def download_image(self, series_uid: str) -> None:
@@ -31,6 +31,7 @@ class ImgNet:
         series_bytes = self.client.download_series(series_uid)
 
         ds = dcmread(series_bytes, force=True)
+        self.output_path.mkdir(exist_ok=True, parents=True)
         ds.save_as(self.output_path / f"{series_uid}.dcm")
 
 
@@ -54,9 +55,9 @@ class ImgNet:
         results = valid_query.process()
         
         if download:
-            for key in results:
-                for series in results[key]:
-                    self.download_image(series)
+            series_results = results["SeriesInstanceUID"].tolist()
+            for series in series_results:
+                self.download_image(series)
             
         
 

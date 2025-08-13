@@ -1,6 +1,12 @@
 import pytest
 from rich.live import Live
 
+from nbiatoolkit.nbia import NBIAClient
+
+@pytest.fixture(scope="module")
+def client():
+    return NBIAClient()
+
 @pytest.fixture(autouse=True)
 def disable_rich_live(monkeypatch):
     class DummyLive:
