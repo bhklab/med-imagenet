@@ -26,7 +26,13 @@ class RuleError(Exception):
         super().__init__(self.message)
 
 class InvalidComparisonError(RuleError):
-    """Exception raised when a Rule has an invalid comparison type for the given argument type."""
+    """Exception raised when a Rule has an invalid comparison type for the given argument type.
+
+    Attributes
+    ----------
+        message: str 
+            explanation of the error.
+    """
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
@@ -35,33 +41,100 @@ class ValidQueryError(Exception):
     """BaseException for ValidQuery errors."""
     pass
 class ModalitiesValidationError(ValidQueryError):
-    """Exception raised when modality field validation fails."""
+    """Exception raised when modality field validation fails.
+    
+    Attributes
+    ----------
+        message: str 
+            explanation of the error."""
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
 class CollectionsValidationError(ValidQueryError):
-    """Exception raised when collections field validation fails."""
+    """Exception raised when collections field validation fails.
+    
+    Attributes
+    ----------
+        message: str 
+            explanation of the error."""
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
 class RulesValidationError(ValidQueryError):
-    """Exception raised when rules field validation fails."""
+    """Exception raised when rules field validation fails.
+    
+    Attributes
+    ----------
+        message: str 
+            explanation of the error."""
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
 
 
 class RulesValidationParsingError(RulesValidationError):
-    """Exception raised when parsing a Rule from string fails during rules field validation."""
+    """Exception raised when parsing a Rule from string fails during rules field validation.
+    
+    Attributes
+    ----------
+        message: str 
+            explanation of the error."""
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
 
 class Rule(BaseModel):
+    """
+    Pydantic for implementing filter rules. 
+    A Rule is essentially a comparison between a DICOM tag and a filter value. 
+
+    Attributes
+    ----------
+
+        tag: str
+            The DICOM tag the rule applies to.
+        value: str
+            The value to compare the DICOM tag to.
+        comparison: str
+            The type of comparison to perform. 
+        
+    Notes
+    -----
+
+    Supported comparison types include
+    - `=` or `==`: Equality.
+    - `!=`: Inequality.
+    or a list of patterns which the `tag` must NOT match.
+    - `<`: Greater than. 
+    - `<=`: Greater or equal to. 
+    - `>`: Less than.
+    - `>=`: Less or equal to. 
+
+    For equality and inequality comparisons, `value` is treated as a regex pattern
+    or a list of regex patterns. The `tag` value must match one or more patterns 
+    for equality, and must not match any patterns for inequality. In the case of 
+    a list, only one element of the list needs to pass the comparison.
+
+
+    All other comparisons require `value` to be numeric, and the `tag` value 
+    must be a number or a list of numbers. In the case of a list, ALL elements 
+    of the list must pass the comparison. 
+
+    """
     tag: str = Field(description="The DICOM tag the rule applies to.")
     value: str | list[str] = Field(description="The value to compare against.")
     comparison: str = Field(description="The comparison type. Note that == and != both interpret the comparison value as a regex pattern.")
     def evaluate(self, dicom_element: dict)->bool:
+        """Evaluate if a dicom_element is accepted by the Rule.
+        
+        Parameters
+        ----------
+            dicom_element: dict
+                A dict containing the metadata of a DICOM.
+        Returns
+        -------
+        bool:
+            True if the Rule accepts the DICOM, False otherwise."""
         tag_value = dicom_element.get(self.tag)
         if tag_value is None:
             return False
@@ -158,6 +231,42 @@ class Rule(BaseModel):
 
 
 class ValidQuery(BaseModel):
+    """
+    Pydantic Model which represents a query on Med-ImageNet.
+
+    Attributes
+    ----------
+        collections: str | list[str], default="all"
+            The collection/collections to query.
+            Collections must be a subset of SUPPORTED_COLLECTIONS.
+        modalities: str | list[str]
+            The modalities to be queried, separated by commas.
+        rules: dict[str, Rule | list[Rules]]
+            The filter rules to apply to each modality.
+        
+        Notes
+        -----
+
+        Examples of Modalities:
+        "CT,RTSTRUCT" means "return only RTSTRUCTs and the CTs 
+        they reference". CTs with no references are not returned.
+
+        ["CT,RTSTRUCT", "CT,SEG"] means "return only RTSTRUCTS and the CTs 
+        they reference, plus SEGs and the CTs that they reference".
+
+        Casting Strings to Rules:
+
+        If rules is a dict[str, str | list[str]], the dict elements will be 
+        casted to Rule. The proper string representation of Rule is:
+        "<DICOM tag name> <comparison symbol> <comparison value>".
+
+        Example rule input:
+
+        {
+            "CT": "SliceThickness == 2",
+            "RTSTRUCT": "BodyPartExamined == LUNG"
+        }
+    """
     collections: str | list[str] = Field(
         description="The collections to query", 
         default="all", 

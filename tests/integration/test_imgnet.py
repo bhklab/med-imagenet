@@ -30,9 +30,9 @@ def test_imgnet_query(
         result: list[str],
         client: NBIAClient
 ) -> None:
-    output_dir = Path("./test_dir/ImgNet_query_output")
+    output_dir = Path("./tests/test_dir/ImgNet_query_output")
     query = ValidQuery(collections=collections, modalities=modalities, rules=rules)
-    df = ImgNet(output_path="./test_dir/ImgNet_query_output", client=client).query(valid_query=query, download=download)
+    df = ImgNet(output_path=output_dir, client=client).query(valid_query=query, download=download)
     assert df["SeriesInstanceUID"].tolist() == result # check if the query returns the expected series.
     if download:
         assert output_dir.exists(), "Download failed: output dir does not exist."
