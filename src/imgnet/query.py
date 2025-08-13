@@ -5,12 +5,12 @@ from pathlib import Path
 import re
 import json
 import pandas as pd
+from imgnet.supported_collections import SUPPORTED_COLLECTIONS
 
 from typing import Any as any
 
 
-ROOT_DIR = Path("indexed_datasets")
-SUPPORTED_COLLECTIONS = ["4D-Lung", "Adrenal-ACC-Ki67-Seg", "C4KC-KiTS"]
+ROOT_DIR = Path(__file__).parent.parent.parent / "indexed_datasets"
 
 class RuleError(Exception):
     """Exception raised for invalid rules.

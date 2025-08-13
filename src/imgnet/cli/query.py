@@ -137,7 +137,7 @@ def query(
             collections = list(collections)
         if isinstance(modalities, tuple):
             modalities = list(modalities)
-        valid_query = ValidQuery(collections=collections, modalities=modalities, rules=rules)
+        valid_query = ValidQuery(collections=collections, modalities=modalities, rules=rules) # 
         logger.info(f"Generated ValidQuery: \ncollections: {collections}\nmodalities: {modalities}\nrules: {rules}")
     
     with open(output_path / "valid_query_schema.json", "w") as f:

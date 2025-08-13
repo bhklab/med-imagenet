@@ -1,6 +1,7 @@
 import click
 from imgnet import __version__
 from .query import query
+from .updatedb import updatedb
 
 @click.group(no_args_is_help=True)
 @click.version_option(
@@ -15,6 +16,7 @@ def cli() -> None:
     pass
 
 cli.add_command(query)
+cli.add_command(updatedb)
 
 if __name__ == "__main__":
     cli()

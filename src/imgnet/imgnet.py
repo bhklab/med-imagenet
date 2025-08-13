@@ -6,6 +6,7 @@ from nbiatoolkit.nbia import NBIAClient
 from imgnet.query import ValidQuery
 
 from imgnet.loggers import logger
+import pandas as pd
 
 class ImgNet:
     def __init__(self, output_path: Path, client: NBIAClient):
@@ -33,7 +34,7 @@ class ImgNet:
         ds.save_as(self.output_path / f"{series_uid}.dcm")
 
 
-    def query(self, valid_query: ValidQuery, download: bool = False) -> dict[str: list[str]]:
+    def query(self, valid_query: ValidQuery, download: bool = False) -> pd.DataFrame:
         """
         Query crawled TCIA datasets and optionally download selected DICOMs using NBIA Toolkit.
 
