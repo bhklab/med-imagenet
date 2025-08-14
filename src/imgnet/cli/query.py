@@ -118,11 +118,10 @@ def query(
     output_path.mkdir(exist_ok=True)
 
     if download:
-        try:
-            (output_path/ "raw_data").mkdir(exist_ok=False)
-        except FileExistsError as e:
-            logger.error(f"{output_path/'raw_data'} already exists. Please remove the raw_data directory and try again.")
-            raise e
+        (output_path/ "raw_data").mkdir(exist_ok=True)
+        if any((output_path / "raw_data").iterdir()):
+            logger.error(f"{output_path/'raw_data'} already contains files. Please remove the raw_data directory and try again.")
+            raise FileExistsError(f"{output_path}/raw_data already contains files.")
         
     if input_path:
         with open(input_path, 'rb') as f:

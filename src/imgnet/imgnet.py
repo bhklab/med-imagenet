@@ -31,7 +31,8 @@ class ImgNet:
         series_bytes = self.client.download_series(series_uid)
 
         ds = dcmread(series_bytes, force=True)
-        self.output_path.mkdir(exist_ok=True, parents=True)
+        if not self.output_path.exists():
+            self.output_path.mkdir(parents=True)
         ds.save_as(self.output_path / f"{series_uid}.dcm")
 
 
