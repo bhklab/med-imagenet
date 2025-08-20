@@ -2,6 +2,7 @@ import click
 from imgnet import __version__
 from .query import query
 from .updatedb import updatedb
+from .collections import collections
 
 @click.group(no_args_is_help=True)
 @click.version_option(
@@ -17,6 +18,7 @@ def cli() -> None:
 
 cli.add_command(query)
 cli.add_command(updatedb)
+cli.add_command(collections)
 
 if __name__ == "__main__":
     cli()

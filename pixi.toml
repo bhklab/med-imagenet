@@ -13,6 +13,7 @@ python = ">=3.10,<3.13"
 pytest = ">=8.4.1,<9"
 mypy = ">=1.17.1,<2"
 types-pytz = ">=2025.2.0.20250809,<2026"
+rich = ">=14.1.0,<15"
 
 [pypi-dependencies]
 imgnet = { path = ".", editable = true }
