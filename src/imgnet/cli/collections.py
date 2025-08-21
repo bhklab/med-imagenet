@@ -7,13 +7,29 @@ from rich.table import Table
 from rich import print
 from imgnet.tciascraper import get_collection_sizes
 
+import re
+
 from imgnet.supported_collections import SUPPORTED_COLLECTIONS
 @click.command(no_args_is_help=False)
 @click.help_option(
     "--help",
     "-h"
 )
-def collections():
+@click.option(
+    "--body-part",
+    "-b",
+    type=str,
+    multiple=True,
+    default=None
+)
+@click.option(
+    "--modality",
+    "-m",
+    type=str,
+    multiple=True,
+    default=None
+)
+def collections(body_part, modality):
     """Display all supported collections."""
     table = Table(title="Collections Summary")
     table.add_column("Collection", justify="right")
@@ -21,38 +37,50 @@ def collections():
     table.add_column("Modalities", justify="left")
     table.add_column("Series Count", justify="right")
     table.add_column("Size", justify="right")
-
-
-    sizes = get_collection_sizes()
-    collection_db = {}
-    for collection in SUPPORTED_COLLECTIONS:
-        # get the indexed_datasets filepath
-        
-        file_path = Path(__file__).parent.parent.parent.parent / "indexed_datasets/.imgtools" / collection / "crawl_db.json"
-        
-        with open(file_path, "r") as f:
-            crawl_json = json.load(f)
-        
-        collection_summary = {
-            "Modalities": set(),
-            "BodyPartsExamined": set(),
-            "SeriesCount": 0,
-            "Size": "".join(sizes[collection])
-        }
-        for key in crawl_json:
-            series = crawl_json[key][list(crawl_json[key].keys())[0]] # I know this looks bad
-            if series["Modality"]:
-                collection_summary["Modalities"].add(series["Modality"])
-            if series["BodyPartExamined"]:
-                collection_summary["BodyPartsExamined"].add(series["BodyPartExamined"])
-            collection_summary["SeriesCount"] += 1
-        for key in collection_summary:
-            if isinstance(collection_summary[key], set):
-                collection_summary[key] = list(collection_summary[key])
-        collection_db[collection] = collection_summary
-        table.add_row(collection, ", ".join(collection_summary["BodyPartsExamined"]), ", ".join(collection_summary["Modalities"]), f"{collection_summary["SeriesCount"]}", collection_summary["Size"])
+    json_path = Path(__file__).parent.parent.parent.parent / "indexed_datasets/collections_summary.json"
+    if json_path.exists():
+        with open(json_path, "r") as f:
+            collection_db = json.load(f)
+    else:
+        sizes = get_collection_sizes()
+        collection_db = {}
+        for collection in SUPPORTED_COLLECTIONS:
+            # get the indexed_datasets filepath
+            file_path = Path(__file__).parent.parent.parent.parent / "indexed_datasets/.imgtools" / collection / "crawl_db.json"
+            
+            with open(file_path, "r") as f:
+                crawl_json = json.load(f)
+            
+            collection_summary = {
+                "Modalities": set(),
+                "BodyPartsExamined": set(),
+                "SeriesCount": 0,
+                "Size": "".join(sizes[collection])
+            }
+            for key in crawl_json:
+                series = crawl_json[key][list(crawl_json[key].keys())[0]] # I know this looks bad
+                if series["Modality"]:
+                    collection_summary["Modalities"].add(series["Modality"])
+                if series["BodyPartExamined"]:
+                    collection_summary["BodyPartsExamined"].add(series["BodyPartExamined"])
+                collection_summary["SeriesCount"] += 1
+            for key in collection_summary:
+                if isinstance(collection_summary[key], set):
+                    collection_summary[key] = list(collection_summary[key])
+            collection_db[collection] = collection_summary
+    
+    for collection in collection_db:
+        collection_summary = collection_db[collection]
+        contains_body_part = True
+        contains_modality = True
+        if body_part and not all(part in collection_summary["BodyPartsExamined"] for part in body_part):
+            contains_body_part = False
+        if modality and not all(m in collection_summary["Modalities"] for m in modality):
+            contains_modality = False
+        if contains_body_part and contains_modality:
+            table.add_row(collection, ", ".join(collection_summary["BodyPartsExamined"]), ", ".join(collection_summary["Modalities"]), f"{collection_summary['SeriesCount']}", collection_summary["Size"])
     print(table)
-    with open(Path(__file__).parent.parent.parent.parent / "indexed_datasets/collections_summary.json", "w") as f:
+    with open(json_path, "w") as f:
         json.dump(collection_db, f)
 
     
