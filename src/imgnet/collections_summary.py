@@ -1,4 +1,4 @@
-from .supported_collections import SUPPORTED_COLLECTIONS
+from imgnet.supported_collections import SUPPORTED_COLLECTIONS
 
 from tqdm import tqdm
 import requests

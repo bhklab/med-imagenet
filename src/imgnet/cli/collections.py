@@ -5,11 +5,9 @@ import pandas as pd
 import json
 from rich.table import Table
 from rich import print
-from imgnet.collections import Collections
+from imgnet.collections_summary import Collections
 
 import re
-
-from imgnet.supported_collections import SUPPORTED_COLLECTIONS
 @click.command(no_args_is_help=False)
 @click.help_option(
     "--help",

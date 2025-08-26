@@ -1,7 +1,12 @@
 from pathlib import Path
 
 from pydicom import dcmread
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from nbiatoolkit.nbia import NBIAClient
+from nbiatoolkit import NBIA_ENDPOINT
+import asyncio
 
 from imgnet.query import ValidQuery
 
@@ -13,27 +18,47 @@ class ImgNet:
         self.output_path = Path(output_path)
         self.client = client
 
-    def download_image(self, series_uid: str) -> None:
+    def download_image(self, series_uid: str, max_workers: int = 8) -> None:
         """
         Download a series using NBIA Toolkit and save in `self.output_path`.
 
         Parameters
         ----------
-
         series_uid: `str`
             The SeriesUID of the series to be downloaded.
+        max_workers: `int`
+            Maximum number of worker threads for parallel downloading.
 
         Returns
         -------
         `None`
         """
         logger.info(f"Downloading image for series {series_uid}")
-        series_bytes = self.client.download_series(series_uid)
 
-        ds = dcmread(series_bytes, force=True)
-        if not self.output_path.exists():
-            self.output_path.mkdir(parents=True)
-        ds.save_as(self.output_path / f"{series_uid}.dcm")
+        sop_uid_data = self.client.getSOPIDs({"SeriesInstanceUID": series_uid})
+
+        save_path = Path(self.output_path / f"{series_uid}")
+        save_path.mkdir(exist_ok=True, parents=True)
+
+        def download_and_save(sop):
+            sop_uid = sop["SOPInstanceUID"]
+            dicom_bytes = self.client.download_single_image(series_uid, sop_uid)
+            ds = dcmread(dicom_bytes, force=True)
+            ds.save_as(save_path / f"{sop_uid}.dcm")
+            return sop_uid
+
+        futures = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for key in sop_uid_data:
+                for sop in sop_uid_data[key]:
+                    futures.append(executor.submit(download_and_save, sop))
+
+            for f in as_completed(futures):
+                try:
+                    sop_uid = f.result()
+                    logger.info(f"Downloaded SOPInstanceUID {sop_uid}")
+                except Exception as e:
+                    logger.error(f"Error downloading SOP: {e}")
 
 
     def query(self, valid_query: ValidQuery, download: bool = False) -> pd.DataFrame:

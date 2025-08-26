@@ -61,69 +61,70 @@ def index_collection(client: NBIAClient, collection: str, output_path: Path, exi
         max_workers: Number of parallel workers (1 = sequential, >1 = parallel)
     """
     series = client.getSeries({'Collection': collection})
-    logger.info(f"Indexing collection {collection}, {len(series)} series found")
+    print(series)
+    # logger.info(f"Indexing collection {collection}, {len(series)} series found")
 
-    (output_path / collection / "images").mkdir(parents=True, exist_ok=True)
+    # (output_path / collection / "images").mkdir(parents=True, exist_ok=True)
     
-    # Filter out existing files if skip strategy is used
-    if exist_strategy == "skip":
-        series = [s for s in series if not (output_path / collection / "images" / f"{s['SeriesInstanceUID']}.dcm").exists()]
-        logger.info(f"After filtering existing files: {len(series)} series to process")
+    # # Filter out existing files if skip strategy is used
+    # if exist_strategy == "skip":
+    #     series = [s for s in series if not (output_path / collection / "images" / f"{s['SeriesInstanceUID']}.dcm").exists()]
+    #     logger.info(f"After filtering existing files: {len(series)} series to process")
     
-    if not series:
-        logger.info(f"No new series to process for collection {collection}")
-        return
+    # if not series:
+    #     logger.info(f"No new series to process for collection {collection}")
+    #     return
     
-    # Create a partial function with fixed arguments
-    process_func = partial(process_single_series, client, output_path=output_path, collection=collection, exist_strategy=exist_strategy)
+    # # Create a partial function with fixed arguments
+    # process_func = partial(process_single_series, client, output_path=output_path, collection=collection, exist_strategy=exist_strategy)
     
-    if max_workers == 1:
-        # Sequential processing (original behavior)
-        with tqdm(
-            series, 
-            desc=f"Processing {collection}",
-            unit="series",
-            total=len(series),
-            bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]"
-        ) as pbar:
-            for s in pbar:
-                result = process_func(s)
-                pbar.set_postfix({"Success": result})
-    else:
-        # Parallel processing
-        logger.info(f"Processing {len(series)} series with {max_workers} workers")
+    # if max_workers == 1:
+    #     # Sequential processing (original behavior)
+    #     with tqdm(
+    #         series, 
+    #         desc=f"Processing {collection}",
+    #         unit="series",
+    #         total=len(series),
+    #         bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]"
+    #     ) as pbar:
+    #         for s in pbar:
+    #             result = process_func(s)
+    #             pbar.set_postfix({"Success": result})
+    # else:
+    #     # Parallel processing
+    #     logger.info(f"Processing {len(series)} series with {max_workers} workers")
         
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all tasks
-            future_to_series = {executor.submit(process_func, s): s for s in series}
+    #     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+    #         # Submit all tasks
+    #         future_to_series = {executor.submit(process_func, s): s for s in series}
             
-            # Process results as they complete
-            successful = 0
-            failed = 0
+    #         # Process results as they complete
+    #         successful = 0
+    #         failed = 0
             
-            with tqdm(
-                total=len(series),
-                desc=f"Processing {collection}",
-                unit="series",
-                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]"
-            ) as pbar:
-                for future in concurrent.futures.as_completed(future_to_series):
-                    result = future.result()
-                    if result:
-                        successful += 1
-                    else:
-                        failed += 1
+    #         with tqdm(
+    #             total=len(series),
+    #             desc=f"Processing {collection}",
+    #             unit="series",
+    #             bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]"
+    #         ) as pbar:
+    #             for future in concurrent.futures.as_completed(future_to_series):
+    #                 result = future.result()
+    #                 if result:
+    #                     successful += 1
+    #                 else:
+    #                     failed += 1
                     
-                    pbar.update(1)
-                    pbar.set_postfix({"Success": successful, "Failed": failed})
+    #                 pbar.update(1)
+    #                 pbar.set_postfix({"Success": successful, "Failed": failed})
         
-        logger.info(f"Collection {collection} processing complete: {successful} successful, {failed} failed")
+    #     logger.info(f"Collection {collection} processing complete: {successful} successful, {failed} failed")
 
-    logger.info(f"Crawling collection {collection}")
-    crawler = Crawler(output_path / collection, force=True)
-    crawler.crawl()
+    # logger.info(f"Crawling collection {collection}")
+    # crawler = Crawler(output_path / collection, force=True)
+    # crawler.crawl()
 
-    logger.info(f"Finished indexing collection {collection}, output path: {output_path / collection}")
+    # logger.info(f"Finished indexing collection {collection}, output path: {output_path / collection}")
 
 if __name__ == "__main__":
     client = NBIAClient()
