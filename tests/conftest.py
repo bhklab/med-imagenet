@@ -1,11 +1,11 @@
 import pytest
 from rich.live import Live
 
-from nbiatoolkit.nbia import NBIAClient
+from idc_index import IDCClient
 
 @pytest.fixture(scope="module")
 def client():
-    return NBIAClient()
+    return IDCClient()
 
 @pytest.fixture(autouse=True)
 def disable_rich_live(monkeypatch):

@@ -1,11 +1,11 @@
 import click
 
-from imgnet import ImgNet
+from imgnet.imgnet import ImgNet
 from imgnet.query import ValidQuery
 from imgnet.loggers import logger
 from pathlib import Path
 import json
-from nbiatoolkit.nbia import NBIAClient
+from idc_index import IDCClient
 
 @click.command(no_args_is_help=True)
 @click.argument(
@@ -60,32 +60,17 @@ from nbiatoolkit.nbia import NBIAClient
     is_flag=True,
     help="Download queried datasets."
 )
-@click.option(
-    "--username",
-    "-u",
-    type=str,
-    default="nbia_guest",
-    help="NBIA username."
-)
-@click.option(
-    "--password",
-    "-p",
-    type=str,
-    default="",
-    help="NBIA password."
-)
+
 def query(
     output_path: Path,
-    input_path: Path,
+    input_path: Path | None,
     collections: str | list[str],
     modalities: str | list[str],
     rules: str,
     download: bool,
-    username: str,
-    password: str
 ) -> None:
     """
-    Query crawled TCIA datasets and optionally download selected DICOMs using NBIA Toolkit.
+    Query crawled TCIA datasets and optionally download selected DICOMs using idc-index.
     A list of selected seriesUIDs for each collection will be saved at `output_path`/selected_seriesuids.csv,
     along with the JSON schema for a ValidQuery object and a JSON representation of the supplied query.
 
@@ -103,16 +88,7 @@ def query(
     rules: `str`
         A JSON string representation of the filter rules to apply to the query, if `input_path` is not supplied.
     download: `bool`
-        If true, downloads the selected series' using NBIA Toolkit.
-    username: `str`
-        Username for accessing the NBIA API.
-    password: `str`
-        Password for accessing the NBIA API.
-
-    Returns
-    -------
-    `None`
-    
+        If true, downloads the selected series' using idc-index.
     """
     output_path = Path(output_path)
     output_path.mkdir(exist_ok=True)
@@ -147,7 +123,7 @@ def query(
         json.dump(valid_query.model_dump(), f, indent=2)
     logger.info(f"Saved ValidQuery json to {output_path / 'valid_query.json'}.")
     
-    client = NBIAClient(username=username, password=password)
+    client = IDCClient()
     imgnet = ImgNet(output_path / "raw_data", client)
     results = imgnet.query(valid_query, download)
 

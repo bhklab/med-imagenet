@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
 from imgtools.dicom import Interlacer
-from dataclasses import dataclass
 from pathlib import Path
 import re
 import json
@@ -9,8 +8,6 @@ from imgnet.supported_collections import SUPPORTED_COLLECTIONS
 
 from typing import Any as any
 
-
-ROOT_DIR = Path(__file__).parent.parent.parent / "indexed_datasets"
 
 class RuleError(Exception):
     """Exception raised for invalid rules.
@@ -390,9 +387,14 @@ class ValidQuery(BaseModel):
         else: 
             raise RulesValidationError(f"Invalid rules: {v}.")
 
-    def process(self) -> pd.DataFrame:
+    def process(self, root_dir: Path | str | None = None) -> pd.DataFrame:
         """Given a ValidQuery, returns a dictionary file containing the seriesUID for each series
         matching the query by collection."""
+
+        if root_dir is None:
+            root_dir = Path.cwd() / "indexed_datasets"
+        root_dir = Path(root_dir)
+
         collections = self.collections
         modality_queries = self.modalities
         rules = self.rules
@@ -407,10 +409,10 @@ class ValidQuery(BaseModel):
         
         for collection in collections:
             # Get index csv
-            csv_path = ROOT_DIR / ".imgtools"/ collection / "index.csv"
+            csv_path = root_dir / ".imgtools"/ collection / "index.csv"
 
             # Access crawl json
-            with open(ROOT_DIR / ".imgtools" / collection / "crawl_db.json", "r") as f:
+            with open(root_dir / ".imgtools" / collection / "crawl_db.json", "r") as f:
                 crawl_db = json.load(f)
             interlacer = Interlacer(csv_path)
             modality_matches = []
@@ -466,26 +468,9 @@ if __name__ == "__main__":
                     "RTSTRUCT": "ROINames == ['Lung']"
                     })
 
-
-
-    result = query.process()
+    result = query.process(root_dir=Path(__file__).parent.parent.parent / "indexed_datasets")
 
     print(result)
-
-
-
-
-                
-
-"""
-query
-- 
-
-Josh vacay in 2 weeks
-
-"""
-
-
 
                 
 

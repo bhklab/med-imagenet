@@ -1,6 +1,6 @@
 import pytest
 
-from nbiatoolkit.nbia import NBIAClient
+from idc_index import IDCClient
 
 from imgnet.imgnet import ImgNet
 from imgnet.query import ValidQuery
@@ -28,7 +28,7 @@ def test_imgnet_query(
         rules: dict[str, str | list[str]],
         download: bool,
         result: list[str],
-        client: NBIAClient
+        client: IDCClient
 ) -> None:
     output_dir = Path("./tests/test_dir/ImgNet_query_output")
     query = ValidQuery(collections=collections, modalities=modalities, rules=rules)
