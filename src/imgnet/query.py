@@ -2,9 +2,9 @@ from pydantic import BaseModel, Field, field_validator
 from imgtools.dicom import Interlacer
 from pathlib import Path
 import re
-import json
 import pandas as pd
-from imgnet.supported_collections import SUPPORTED_COLLECTIONS
+
+from imgnet.collections.store import IndexedDatasets
 
 from typing import Any as any
 
@@ -291,17 +291,15 @@ class ValidQuery(BaseModel):
     @field_validator("collections", mode="after")
     def validate_collections(cls, v: str | list[str]
                             ) -> str | list[str]:
-        """
-        Pydantic validation of collection field.
-        Checks if the collections supplied are supported by med-imagenet.
+        """Validate that collections is a str or list[str].
+
+        Membership against the actual store is checked at process() time.
         """
         if isinstance(v, list):
-            for _collection in v:
-                if _collection not in SUPPORTED_COLLECTIONS:
-                    raise CollectionsValidationError(f"Collection {_collection} not found.")
-        else:
-            if v != "all" and v not in SUPPORTED_COLLECTIONS:
-                raise CollectionsValidationError(f"Collection {v} not found.")
+            if not all(isinstance(c, str) for c in v):
+                raise CollectionsValidationError("All collection names must be strings.")
+        elif not isinstance(v, str):
+            raise CollectionsValidationError(f"collections must be str | list[str], got {type(v)}.")
         return v
     @field_validator("modalities", mode="before")
     def validate_modalities(cls, v: any
@@ -387,33 +385,37 @@ class ValidQuery(BaseModel):
         else: 
             raise RulesValidationError(f"Invalid rules: {v}.")
 
-    def process(self, root_dir: Path | str | None = None) -> pd.DataFrame:
-        """Given a ValidQuery, returns a dictionary file containing the seriesUID for each series
-        matching the query by collection."""
+    def process(self, store: IndexedDatasets) -> pd.DataFrame:
+        """Given a ValidQuery, returns a DataFrame containing the seriesUID for each series
+        matching the query.
 
-        if root_dir is None:
-            root_dir = Path.cwd() / "indexed_datasets"
-        root_dir = Path(root_dir)
+        Parameters
+        ----------
+        store : IndexedDatasets
+            The indexed datasets store to query against.
+        """
+        supported = store.collections
 
         collections = self.collections
         modality_queries = self.modalities
         rules = self.rules
 
-        matches = []
         if collections == "all":
-            collections = SUPPORTED_COLLECTIONS
+            collections = supported
         if isinstance(collections, str):
             collections = [collections]
+        for c in collections:
+            if c not in supported:
+                raise CollectionsValidationError(f"Collection {c} not found.")
         if isinstance(modality_queries, str):
             modality_queries = [modality_queries]
-        
-        for collection in collections:
-            # Get index csv
-            csv_path = root_dir / ".imgtools"/ collection / "index.csv"
 
-            # Access crawl json
-            with open(root_dir / ".imgtools" / collection / "crawl_db.json", "r") as f:
-                crawl_db = json.load(f)
+        matches = []
+        for collection in collections:
+            index_df = store.index(collection)
+            crawl_db = store.crawl_db(collection)
+
+            csv_path = store.imgtools_path / collection / "index.csv"
             interlacer = Interlacer(csv_path)
             modality_matches = []
             
@@ -430,7 +432,6 @@ class ValidQuery(BaseModel):
                     for key in crawl_db[series]:
                         # The crawldb is structured weird, there's always an extra layer in between
                         # the seriesuid and the actual metadata associated with it.
-                        # This is just a easy workaround.
                         dicom = crawl_db[series][key]
                     
                     modality = dicom['Modality']
@@ -442,16 +443,14 @@ class ValidQuery(BaseModel):
                         if modality_rules:
                             for rule in modality_rules:
                                 if not rule.evaluate(dicom):
-                                    # a series is only added to the final query output if it follows ALL the rules.
                                     accept_series = False
                                     break
                     if accept_series:
                         result.append(series)
                     elif series == group[0]:
-                        # if the root node (the first element in the list) is not selected by the query, the children will be skipped.
-                        # this prevents the selection of masks which reference a dicom that was not selected.
+                        # if the root node is not selected, children are skipped
+                        # to prevent selecting masks that reference an unselected dicom.
                         break 
-            index_df = pd.read_csv(csv_path)
             index_df = index_df[index_df["SeriesInstanceUID"].isin(result)]
             index_df["Collection"] = collection
             matches.append(index_df)
@@ -459,6 +458,7 @@ class ValidQuery(BaseModel):
                     
 
 if __name__ == "__main__":
+    store = IndexedDatasets(Path(__file__).parent.parent.parent / "indexed_datasets")
     query = ValidQuery(
                 collections="all", 
                 modalities=["CT,SEG", "CT,RTSTRUCT"], 
@@ -468,10 +468,5 @@ if __name__ == "__main__":
                     "RTSTRUCT": "ROINames == ['Lung']"
                     })
 
-    result = query.process(root_dir=Path(__file__).parent.parent.parent / "indexed_datasets")
-
+    result = query.process(store)
     print(result)
-
-                
-
-

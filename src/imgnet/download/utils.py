@@ -3,9 +3,6 @@ from pathlib import Path
 from tqdm import tqdm
 import requests
 
-# ------------------------------------------------------------
-# Download Helper Functions
-# ------------------------------------------------------------
 
 def download_file_from_s3(bucket_name: str, file_name: str, output_path: Path, chunk_size: int = 2**20) -> None:
     fs = s3fs.S3FileSystem(anon=True)
@@ -77,41 +74,3 @@ def download_from_zenodo(
                         pbar.update(len(chunk))
         downloaded.append(out_file)
     return downloaded
-
-
-# ------------------------------------------------------------
-# Download Datasets
-# ------------------------------------------------------------
-
-def download_medical_decathlon(output_path: Path) -> None:
-    tasks = [
-        'Task01_BrainTumour.tar',
-        'Task02_Heart.tar',
-        'Task03_Liver.tar',
-        'Task04_Hippocampus.tar',
-        'Task05_Prostate.tar',
-        'Task06_Lesion.tar',
-        'Task07_Pancreas.tar',
-        'Task08_HepaticVessel.tar',
-        'Task09_Spleen.tar',
-        'Task10_Colon.tar'
-    ]
-    for task in tasks:
-        download_file_from_s3('msd-for-monai', task, output_path)
-
-
-def download_total_segmentator_data(output_path: Path) -> None:
-    url = "https://www.dropbox.com/scl/fi/oq0fsz8oauory204g8o6f/Totalsegmentator_dataset_v201.zip?rlkey=afnl2ixhqca2ukkf1v9p6jz7p&dl=0"
-    download_from_dropbox(url, output_path)
-
-def download_total_segmentator_mri_data(output_path: Path) -> None:
-    url = "https://www.dropbox.com/scl/fi/cn7736fcznvquf33m7yod/TotalsegmentatorMRI_dataset_v100.zip?rlkey=af1l0x7ajnczrminfzzb6ict9&st=if883tqe&dl=0"
-    download_from_dropbox(url, output_path)
-
-
-
-if __name__ == "__main__":
-    output_path = Path("temp_data")
-    output_path.mkdir(exist_ok=True, parents=True)
-    # download_medical_decathlon(output_path)
-    # download_total_segmentator_data(output_path)

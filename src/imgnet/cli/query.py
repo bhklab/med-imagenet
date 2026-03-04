@@ -1,11 +1,13 @@
 import click
+from pathlib import Path
+import json
+
+from idc_index import IDCClient
 
 from imgnet.imgnet import ImgNet
 from imgnet.query import ValidQuery
+from imgnet.collections.store import IndexedDatasets
 from imgnet.loggers import logger
-from pathlib import Path
-import json
-from idc_index import IDCClient
 
 @click.command(no_args_is_help=True)
 @click.argument(
@@ -123,8 +125,9 @@ def query(
         json.dump(valid_query.model_dump(), f, indent=2)
     logger.info(f"Saved ValidQuery json to {output_path / 'valid_query.json'}.")
     
-    client = IDCClient()
-    imgnet = ImgNet(output_path / "raw_data", client)
+    store = IndexedDatasets(Path.cwd() / "indexed_datasets")
+    client = IDCClient() if download else None
+    imgnet = ImgNet(output_path / "raw_data", store=store, client=client)
     results = imgnet.query(valid_query, download)
 
     results.to_csv(output_path / 'selected_dicoms.csv')

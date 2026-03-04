@@ -1,11 +1,17 @@
 import pytest
+from pathlib import Path
 from rich.live import Live
 
 from idc_index import IDCClient
+from imgnet.collections.store import IndexedDatasets
 
 @pytest.fixture(scope="module")
 def client():
     return IDCClient()
+
+@pytest.fixture(scope="module")
+def store():
+    return IndexedDatasets(Path.cwd() / "indexed_datasets")
 
 @pytest.fixture(autouse=True)
 def disable_rich_live(monkeypatch):

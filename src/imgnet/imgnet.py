@@ -1,78 +1,76 @@
 from pathlib import Path
+
 import pandas as pd
 from idc_index import IDCClient
 
 from imgnet.query import ValidQuery
-from imgnet.loggers import logger, tqdm_logging_redirect
+from imgnet.collections.store import IndexedDatasets
+from imgnet.download import download_collection
+from imgnet.loggers import logger
 
 
 class ImgNet:
     def __init__(
-        self, 
-        output_path: Path, 
-        client: IDCClient,
-        indexed_datasets_path: Path | str | None = None
+        self,
+        output_path: Path,
+        store: IndexedDatasets,
+        client: IDCClient | None = None,
     ):
         self.output_path = Path(output_path)
+        self.store = store
         self.client = client
 
-        if indexed_datasets_path is None:
-            indexed_datasets_path = Path.cwd() / "indexed_datasets"
-        self.indexed_datasets_path = Path(indexed_datasets_path)
-
-
-    def download_image(self, series_uid: str) -> None:
-        """
-        Download a series using idc-index and save in `self.output_path`.
+    def download(self, collection: str, series_uids: list[str] | None = None) -> None:
+        """Download a collection (or specific series within it).
 
         Parameters
         ----------
-        series_uid: `str`
-            The SeriesUID of the series to be downloaded.
-
-        Returns
-        -------
-        `None`
+        collection : str
+            The collection name.
+        series_uids : list[str] | None
+            For DICOM/TCIA collections, the specific series to download.
+            Ignored for non-TCIA sources which download the full collection.
         """
-        logger.info(f"Downloading image for series {series_uid}")
-
-        save_path = Path(self.output_path / f"{series_uid}")
-        save_path.mkdir(exist_ok=True, parents=True)
-
-        with tqdm_logging_redirect():
-            self.client.download_dicom_series(series_uid, save_path)
-
+        download_collection(
+            collection=collection,
+            output_path=self.output_path,
+            store=self.store,
+            client=self.client,
+            series_uids=series_uids,
+        )
 
     def query(self, valid_query: ValidQuery, download: bool = False) -> pd.DataFrame:
-        """
-        Query crawled TCIA datasets and optionally download selected DICOMs using idc-index.
+        """Query indexed datasets and optionally download selected series.
 
         Parameters
         ----------
-
-        valid_query: `ValidQuery`
-            The query used to select seriesUIDs from TCIA.
-        download: `bool`
-            If true, downloads the selected series' using idc-index.
+        valid_query : ValidQuery
+            The query used to select series from indexed collections.
+        download : bool
+            If true, downloads the selected series after querying.
 
         Returns
         -------
-        `dict[str: list[str]]`
-            A dictionary containing a list of selected seriesUIDs for each collection in the query.
+        pd.DataFrame
+            DataFrame of matched series.
         """
-        results = valid_query.process(root_dir=self.indexed_datasets_path)
-        
-        if download:
-            series_results = results["SeriesInstanceUID"].tolist()
-            for series in series_results:
-                self.download_image(series)
-            
-        return results
+        results = valid_query.process(self.store)
 
+        if download:
+            for collection, group in results.groupby("Collection"):
+                series_uids = group["SeriesInstanceUID"].tolist()
+                logger.info(f"Downloading {len(series_uids)} series from {collection}")
+                self.download(collection, series_uids=series_uids)
+
+        return results
 
 
 if __name__ == "__main__":
     client = IDCClient()
-    imgnet = ImgNet(output_path=Path("bruh"), client=client)
+    store = IndexedDatasets(Path.cwd() / "indexed_datasets")
+    imgnet = ImgNet(output_path=Path("bruh"), store=store, client=client)
 
-    imgnet.download_image("1.3.6.1.4.1.14519.5.2.1.6834.5010.124741849880980303405787216373")
+    imgnet.download(
+        "4D-Lung",
+        series_uids=["1.3.6.1.4.1.14519.5.2.1.6834.5010.124741849880980303405787216373"],
+    )

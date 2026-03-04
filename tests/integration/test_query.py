@@ -1,14 +1,13 @@
 import pytest
-from imgnet.query import ValidQuery, Rule, ValidQueryError
-@pytest.mark.parametrize("collections, modalities, rules, exception", [
+from imgnet.query import ValidQuery, Rule, ValidQueryError, CollectionsValidationError
+from imgnet.collections.store import IndexedDatasets
 
-    # Test collections validation
+
+@pytest.mark.parametrize("collections, modalities, rules, exception", [
+    # Valid construction (type-level validation only)
     ("all", "all", None, None),
-    ("4D-Lung", "all", None, None), # failed
+    ("4D-Lung", "all", None, None),
     (["4D-Lung", "Adrenal-ACC-Ki67-Seg"], "all", None, None),
-    (["all", "4D-Lung"], "all", None, ValidQueryError),
-    ("Unsupported_Collection", "all", None, ValidQueryError),
-    (["4D-Lung", "Unsupported_Collection"], "all", None, ValidQueryError),
 
     # Test Modality Validation
     ("all", ["CT,RTSTRUCT", "CT,SEG"], None, None),
@@ -24,17 +23,34 @@ from imgnet.query import ValidQuery, Rule, ValidQueryError
     ("all", "all", {"CT": "TagValue == 1", "MR": "Invalid Rule"}, ValidQueryError),
     ("all", "all", {"CT": "TagValue == 1", "MR": ["TagValue == 1", "Invalid Rule"]}, ValidQueryError)
 ])
-def test_query_collection_validation(
+def test_query_field_validation(
     collections: str | list[str], 
     modalities: str | list[str], 
     rules: dict[str, Rule | list[Rule]], 
     exception: Exception) -> None:
-    """Test that all Pydantic fields are properly validated."""
+    """Test that Pydantic field validation catches type/format errors at construction time."""
     if exception:
         with pytest.raises(exception):
             ValidQuery(collections=collections, modalities=modalities, rules=rules)
     else:
         ValidQuery(collections=collections, modalities=modalities, rules=rules) 
+
+
+@pytest.mark.parametrize("collections, expected_exception", [
+    ("Unsupported_Collection", CollectionsValidationError),
+    (["4D-Lung", "Unsupported_Collection"], CollectionsValidationError),
+    (["all", "4D-Lung"], CollectionsValidationError),
+])
+def test_query_collection_membership_validation(
+    collections: str | list[str],
+    expected_exception: type[Exception],
+    store: IndexedDatasets,
+) -> None:
+    """Collection membership against the store is validated at process() time."""
+    query = ValidQuery(collections=collections, modalities="all", rules=None)
+    with pytest.raises(expected_exception):
+        query.process(store)
+
 
 @pytest.mark.parametrize("collections, modalities, rules, result", [
     # Each test is designed to only return one result. 
@@ -47,7 +63,8 @@ def test_query_process(
         collections: str | list[str],
         modalities: str | list[str],
         rules: dict[str, Rule | list[Rule]],
-        result: list[str]
+        result: list[str],
+        store: IndexedDatasets,
 ) -> None:
-    df = ValidQuery(collections=collections, modalities=modalities, rules=rules).process()
-    assert df["SeriesInstanceUID"].tolist() == result # check if the query returns the expected series.
+    df = ValidQuery(collections=collections, modalities=modalities, rules=rules).process(store)
+    assert df["SeriesInstanceUID"].tolist() == result
