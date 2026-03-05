@@ -35,7 +35,7 @@ class IndexedDatasets:
 
             logger.warning("Indexed datasets directory not found. Downloading latest release from GitHub.")
             zip_path = download_latest_release_asset(
-                owner="JoshuaSiraj",
+                owner="bhklab",
                 repo="med-image_index",
                 asset_name="indexed_datasets.tar.gz",
                 download_dir=Path.cwd().as_posix(),
