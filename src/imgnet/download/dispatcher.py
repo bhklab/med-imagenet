@@ -1,4 +1,3 @@
-import shutil
 from pathlib import Path
 from typing import Callable
 
@@ -15,6 +14,7 @@ from imgnet.download.utils import (
     download_file_from_s3,
     download_from_dropbox,
     download_from_zenodo,
+    _post_unzip,
 )
 from imgnet.loggers import logger, tqdm_logging_redirect
 
@@ -57,15 +57,6 @@ def _download_zenodo(config: ZenodoSource, output_path: Path) -> None:
 
 
 # ---- post-download steps ----
-
-def _post_unzip(output_path: Path) -> None:
-    """Unpack every archive found in *output_path*."""
-    for archive in output_path.iterdir():
-        if archive.suffix in {".zip", ".tar", ".gz", ".tgz", ".bz2", ".xz"}:
-            logger.info(f"Unpacking {archive.name}")
-            shutil.unpack_archive(archive, output_path)
-            archive.unlink()
-
 
 _POST_STEP_MAP: dict[str, Callable[[Path], None]] = {
     "unzip": _post_unzip,

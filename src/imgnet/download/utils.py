@@ -2,6 +2,9 @@ import s3fs
 from pathlib import Path
 from tqdm import tqdm
 import requests
+import shutil
+
+from imgnet.loggers import logger
 
 
 def download_file_from_s3(bucket_name: str, file_name: str, output_path: Path, chunk_size: int = 2**20) -> None:
@@ -74,3 +77,77 @@ def download_from_zenodo(
                         pbar.update(len(chunk))
         downloaded.append(out_file)
     return downloaded
+
+
+def download_latest_release_asset(
+    owner: str,
+    repo: str,
+    asset_name: str,
+    download_dir: str | Path = "downloads",
+    token: str | None = None,
+) -> Path:
+    """
+    Download a specific asset from the latest GitHub release.
+
+    Parameters
+    ----------
+    owner : str
+        Repository owner
+    repo : str
+        Repository name
+    asset_name : str
+        Name of the asset to download
+    download_dir : str | Path
+        Directory to save the file
+    token : str | None
+        GitHub token (optional)
+    """
+
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
+
+    release = requests.get(api_url, headers=headers).json()
+    assets = release.get("assets", [])
+
+    asset = next((a for a in assets if a["name"] == asset_name), None)
+
+    if asset is None:
+        raise ValueError(f"Asset '{asset_name}' not found in latest release. Available assets: {assets}")
+
+    url = asset["browser_download_url"]
+
+    download_dir = Path(download_dir)
+    download_dir.mkdir(parents=True, exist_ok=True)
+
+    filepath = download_dir / asset_name
+
+    with requests.get(url, headers=headers, stream=True) as r:
+        r.raise_for_status()
+        total = int(r.headers.get("content-length", 0))
+
+        with open(filepath, "wb") as f, tqdm(
+            total=total,
+            unit="B",
+            unit_scale=True,
+            desc=asset_name
+        ) as pbar:
+            for chunk in r.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+                    pbar.update(len(chunk))
+
+    return filepath
+
+
+def _post_unzip(output_path: Path, archive_filenames: list[str] | None = None) -> None:
+    """Unpack every archive found in *output_path*."""
+    for archive in output_path.iterdir():
+        if archive_filenames is not None and archive.name not in archive_filenames:
+            continue
+        if archive.suffix in {".zip", ".tar", ".gz", ".tgz", ".bz2", ".xz"}:
+            logger.info(f"Unpacking {archive.name}")
+            shutil.unpack_archive(archive, output_path)
+            archive.unlink()

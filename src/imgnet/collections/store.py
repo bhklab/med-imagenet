@@ -1,10 +1,8 @@
 import json
-import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
-import requests
 from rich import print
 from rich.table import Table
 from tqdm import tqdm
@@ -16,24 +14,7 @@ from imgnet.collections.source import (
     source_adapter,
 )
 from imgnet.loggers import logger
-
-
-def _fetch_collection_size(name: str) -> tuple[str, str]:
-    collection = name.replace(" ", "-")
-    url = f"https://www.cancerimagingarchive.net/collection/{collection}/"
-    headers = {"User-Agent": "Mozilla/5.0"}
-
-    try:
-        r = requests.get(url, headers=headers, timeout=10)
-        text = r.text.replace("\n", "")
-        if r.ok:
-            pattern = r'(?:Download\(|<nobr>)([\d.]+)\s*(KB|MB|GB|TB)(?:\)|</nobr>)'
-            matches = re.findall(pattern, text)
-            if matches:
-                return name, f"{matches[0][0]} {matches[0][1]}"
-        return name, "N/A"
-    except Exception:
-        return name, "N/A"
+from imgnet.collections.utils import _fetch_collection_size
 
 
 class IndexedDatasets:
@@ -41,18 +22,27 @@ class IndexedDatasets:
 
     Parameters
     ----------
-    path : Path | str
-        Path to the ``indexed_datasets/`` root directory.
+    path : Path | str | None
+        Path to the ``indexed_datasets/`` root directory
+        If not provided, the latest release from GitHub will be downloaded and unpacked.
     """
 
     # ---- core data access ----
 
-    def __init__(self, path: Path | str) -> None:
-        self.path = Path(path)
-        if not self.path.is_dir():
-            raise FileNotFoundError(
-                f"Indexed datasets directory not found: {self.path}"
+    def __init__(self, path: Path | str | None = None) -> None:
+        if path is None:
+            from imgnet.download.utils import download_latest_release_asset, _post_unzip
+
+            logger.warning("Indexed datasets directory not found. Downloading latest release from GitHub.")
+            zip_path = download_latest_release_asset(
+                owner="JoshuaSiraj",
+                repo="med-image_index",
+                asset_name="indexed_datasets.tar.gz",
+                download_dir=Path.cwd().as_posix(),
             )
+            _post_unzip(zip_path.parent, archive_filenames=["indexed_datasets.tar.gz"])
+            path = zip_path.parent / "indexed_datasets"
+        self.path = Path(path)
 
     @property
     def imgtools_path(self) -> Path:
