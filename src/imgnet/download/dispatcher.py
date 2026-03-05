@@ -36,15 +36,24 @@ def _download_tcia(
 
 
 def _download_dropbox(config: DropboxSource, output_path: Path) -> None:
+    logger.info(f"Downloading files from Dropbox URL {config.url}")
     download_from_dropbox(config.url, output_path)
 
 
 def _download_s3(config: S3Source, output_path: Path) -> None:
-    download_file_from_s3(config.bucket_name, config.file_name, output_path)
+    for file_name in config.filenames or []:
+        logger.info(f"Downloading file '{file_name}' from S3 bucket {config.bucket_name}")
+        download_file_from_s3(config.bucket_name, file_name, output_path)
 
 
 def _download_zenodo(config: ZenodoSource, output_path: Path) -> None:
-    download_from_zenodo(config.record_id, output_path, filename=config.filename)
+    if config.filenames is None:
+        logger.info(f"Downloading all files from Zenodo record {config.record_id}")
+        download_from_zenodo(config.record_id, output_path)
+    else:
+        for filename in config.filenames:
+            logger.info(f"Downloading file '{filename}' from Zenodo record {config.record_id}")
+            download_from_zenodo(config.record_id, output_path, filename=filename)
 
 
 # ---- post-download steps ----

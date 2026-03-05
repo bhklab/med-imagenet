@@ -26,7 +26,7 @@ class S3Source(BaseModel):
     file_type: FileType
     source: Literal["s3"] = "s3"
     bucket_name: str
-    file_name: str
+    filenames: list[str] | None = None
     post_download: list[str] = []
 
 
@@ -34,7 +34,7 @@ class ZenodoSource(BaseModel):
     file_type: FileType
     source: Literal["zenodo"] = "zenodo"
     record_id: str
-    filename: str | None = None
+    filenames: list[str] | None = None
     post_download: list[str] = []
 
 
