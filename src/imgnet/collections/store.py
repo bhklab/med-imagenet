@@ -1,8 +1,10 @@
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
+from platformdirs import user_data_dir
 from rich import print
 from rich.table import Table
 from tqdm import tqdm
@@ -13,8 +15,25 @@ from imgnet.collections.source import (
     TCIASource,
     source_adapter,
 )
-from imgnet.loggers import logger
+from imgnet.loggers import logger, tqdm_logging_redirect
 from imgnet.collections.utils import _fetch_collection_size
+
+_ENV_VAR = "IMGNET_INDEX_DIR"
+_APP_NAME = "med-imagenet"
+_APP_AUTHOR = "bhklab"
+
+
+def default_indexed_datasets_path() -> Path:
+    """Return the default path for the ``indexed_datasets/`` directory.
+
+    Resolution order:
+    1. ``$IMGNET_INDEX_DIR/indexed_datasets`` if the env var is set.
+    2. ``<platform-data-dir>/med-imagenet/indexed_datasets`` via *platformdirs*.
+    """
+    env = os.environ.get(_ENV_VAR)
+    if env:
+        return Path(env) / "indexed_datasets"
+    return Path(user_data_dir(_APP_NAME, _APP_AUTHOR)) / "indexed_datasets"
 
 
 class IndexedDatasets:
@@ -23,26 +42,40 @@ class IndexedDatasets:
     Parameters
     ----------
     path : Path | str | None
-        Path to the ``indexed_datasets/`` root directory
-        If not provided, the latest release from GitHub will be downloaded and unpacked.
+        Path to the ``indexed_datasets`` directory
+        If not provided, the latest release from Hugging Face will be downloaded.
+    force_download : bool
+        If true, the indexed datasets will be downloaded even if they already exist.
     """
 
     # ---- core data access ----
 
-    def __init__(self, path: Path | str | None = None) -> None:
+    def __init__(self, path: Path | str | None = None, force_download: bool = False) -> None:
         if path is None:
-            from imgnet.download.utils import download_latest_release_asset, _post_unzip
+            path = default_indexed_datasets_path()
 
-            logger.warning("Indexed datasets directory not found. Downloading latest release from GitHub.")
-            zip_path = download_latest_release_asset(
-                owner="bhklab",
-                repo="med-image_index",
-                asset_name="indexed_datasets.tar.gz",
-                download_dir=Path.cwd().as_posix(),
+        path = Path(path)
+
+        if not path.exists() or force_download:
+            from huggingface_hub import snapshot_download
+
+            repo_id = "BruhJosh/med-image-index"
+            logger.warning(
+                "Indexed datasets not found at %s. "
+                "Downloading latest release from Hugging Face.",
+                path,
             )
-            _post_unzip(zip_path.parent, archive_filenames=["indexed_datasets.tar.gz"])
-            path = zip_path.parent / "indexed_datasets"
-        self.path = Path(path)
+            download_dir = path.parent
+            download_dir.mkdir(parents=True, exist_ok=True)
+            with tqdm_logging_redirect():
+                snapshot_download(
+                    repo_id=repo_id, 
+                    repo_type="dataset",
+                    local_dir=download_dir,
+                    ignore_patterns=[".git*"]
+                )
+
+        self.path = path
 
     @property
     def imgtools_path(self) -> Path:
@@ -164,3 +197,7 @@ class IndexedDatasets:
             )
 
         print(table)
+
+if __name__ == "__main__":
+    store = IndexedDatasets(force_download=True)
+    print(store.collections[:10])

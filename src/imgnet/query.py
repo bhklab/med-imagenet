@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
 from imgtools.dicom import Interlacer
-from pathlib import Path
 import re
 import pandas as pd
 
@@ -458,7 +457,7 @@ class ValidQuery(BaseModel):
                     
 
 if __name__ == "__main__":
-    store = IndexedDatasets(Path(__file__).parent.parent.parent / "indexed_datasets")
+    store = IndexedDatasets()
     query = ValidQuery(
                 collections="all", 
                 modalities=["CT,SEG", "CT,RTSTRUCT"], 

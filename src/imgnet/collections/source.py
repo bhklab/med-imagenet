@@ -12,14 +12,14 @@ class FileType(Enum):
 class TCIASource(BaseModel):
     file_type: FileType = FileType.DICOM
     source: Literal["tcia"] = "tcia"
-    post_download: list[str] = []
+    post_download: list[str] = Field(default_factory=lambda: ["unzip"])
 
 
 class DropboxSource(BaseModel):
     file_type: FileType
     source: Literal["dropbox"] = "dropbox"
     url: str
-    post_download: list[str] = []
+    post_download: list[str] = Field(default_factory=lambda: ["unzip"])
 
 
 class S3Source(BaseModel):
@@ -27,7 +27,7 @@ class S3Source(BaseModel):
     source: Literal["s3"] = "s3"
     bucket_name: str
     filenames: list[str] | None = None
-    post_download: list[str] = []
+    post_download: list[str] = Field(default_factory=lambda: ["unzip"])
 
 
 class ZenodoSource(BaseModel):
@@ -35,7 +35,7 @@ class ZenodoSource(BaseModel):
     source: Literal["zenodo"] = "zenodo"
     record_id: str
     filenames: list[str] | None = None
-    post_download: list[str] = []
+    post_download: list[str] = Field(default_factory=lambda: ["unzip"])
 
 
 SourceConfig = Annotated[
