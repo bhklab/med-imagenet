@@ -58,6 +58,8 @@ class IndexedDatasets:
 
         if not path.exists() or force_download:
             from huggingface_hub import snapshot_download
+            from huggingface_hub.utils import disable_progress_bars, enable_progress_bars
+            from tqdm.auto import tqdm as _tqdm
 
             repo_id = "BruhJosh/med-image-index"
             logger.warning(
@@ -67,13 +69,19 @@ class IndexedDatasets:
             )
             download_dir = path.parent
             download_dir.mkdir(parents=True, exist_ok=True)
-            with tqdm_logging_redirect():
-                snapshot_download(
-                    repo_id=repo_id, 
-                    repo_type="dataset",
-                    local_dir=download_dir,
-                    ignore_patterns=[".git*"]
-                )
+
+            disable_progress_bars()
+            try:
+                with tqdm_logging_redirect():
+                    snapshot_download(
+                        repo_id=repo_id,
+                        repo_type="dataset",
+                        local_dir=download_dir,
+                        ignore_patterns=[".git*"],
+                        tqdm_class=_tqdm,
+                    )
+            finally:
+                enable_progress_bars()
 
         self.path = path
 
