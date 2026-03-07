@@ -144,3 +144,5 @@ notebooks/*.tsv
 indexed_datasets/
 
 temp
+
+.DS_Store
