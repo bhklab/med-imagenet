@@ -9,11 +9,17 @@ from imgnet.collections.store import IndexedDatasets
     "--help",
     "-h"
 )
+@click.option(
+    "--update",
+    "-u",
+    is_flag=True,
+    help="Update the collections summary."
+)
 
-def collections():
+def collections(update: bool):
     """Display all supported collections."""
-    store = IndexedDatasets(Path.cwd() / "indexed_datasets")
-    store.display_summary()
+    store = IndexedDatasets()
+    store.display_summary(update)
 
     
             

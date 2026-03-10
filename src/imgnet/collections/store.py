@@ -1,6 +1,5 @@
 import json
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
@@ -15,8 +14,9 @@ from imgnet.collections.source import (
     TCIASource,
     source_adapter,
 )
+from imgnet.download.utils import _fetch_collection_size_idc
+from imgnet.download.dispatcher import get_collection_download_size_bytes
 from imgnet.loggers import logger, tqdm_logging_redirect
-from imgnet.collections.utils import _fetch_collection_size
 
 _ENV_VAR = "IMGNET_INDEX_DIR"
 _APP_NAME = "med-imagenet"
@@ -55,6 +55,7 @@ class IndexedDatasets:
             path = default_indexed_datasets_path()
 
         path = Path(path)
+        print(path.resolve())
 
         if not path.exists() or force_download:
             from huggingface_hub import snapshot_download
@@ -65,7 +66,7 @@ class IndexedDatasets:
             logger.warning(
                 "Indexed datasets not found at %s. "
                 "Downloading latest release from Hugging Face.",
-                path,
+                path.resolve(),
             )
             download_dir = path.parent
             download_dir.mkdir(parents=True, exist_ok=True)
@@ -135,57 +136,79 @@ class IndexedDatasets:
         """Return the ``FileType`` for *collection*."""
         return self.source_config(collection).file_type
 
+    def collection_size(self, collection: str) -> float:
+        """Return the size of *collection* in GB."""
+        config = self.source_config(collection)
+
+        try:
+            if config.source == "tcia":
+                return _fetch_collection_size_idc(collection)
+            return round(float(get_collection_download_size_bytes(config) / 1e9), 2)
+        except Exception as e:
+            logger.error(f"Error getting size for collection {collection}: {e}")
+            return 0.0
+
     # ---- summary / display ----
 
-    @property
-    def summary(self) -> dict:
+    def summary(self, update: bool = False) -> dict:
         """Parsed ``collections_summary.json``, or ``None`` if it doesn't exist."""
-        if not self.summary_path.exists():
+        if not self.summary_path.exists() or update:
+            logger.info("Collections summary not found or update is True. Building new summary.")
             collection_db = self._build_collection_db()
             with open(self.summary_path, "w") as f:
                 json.dump(collection_db, f)
             return collection_db
         with open(self.summary_path, "r") as f:
+            logger.info("Loading collections summary from %s.", self.summary_path)
             return json.load(f)
 
-    @property
-    def collection_sizes(self) -> dict[str, str]:
-        """Return the sizes of all collections."""
-        sizes = {}
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            futures = {executor.submit(_fetch_collection_size, c): c for c in self.collections}
-            for f in tqdm(as_completed(futures), total=len(futures), desc="Scraping collections"):
-                collection, size = f.result()
-                sizes[collection] = size
-        return sizes
-
     def _build_collection_db(self) -> dict:
-        sizes = self.collection_sizes
         collection_db = {}
-        for collection in self.collections:
-            crawl_json = self.crawl_db(collection)
 
-            summary = {
-                "Modalities": set(),
-                "BodyPartsExamined": set(),
-                "SeriesCount": 0,
-                "Size": "".join(sizes[collection])
-            }
-            for key in crawl_json:
-                series = crawl_json[key][list(crawl_json[key].keys())[0]]
-                if series["Modality"]:
-                    summary["Modalities"].add(series["Modality"])
-                if series["BodyPartExamined"]:
-                    summary["BodyPartsExamined"].add(series["BodyPartExamined"])
-                summary["SeriesCount"] += 1
-            for key in summary:
-                if isinstance(summary[key], set):
-                    summary[key] = list(summary[key])
-            collection_db[collection] = summary
+        with tqdm_logging_redirect():
+            for collection in tqdm(self.collections, desc="Building collections summary", total=len(self.collections)):
+                logger.info("Building collection summary for %s.", collection)
+                summary = {
+                    "Modalities": set(),
+                    "BodyPartsExamined": set(),
+                    "SeriesCount": 0,
+                    "Size": self.collection_size(collection)
+                }
+
+                if self.file_type(collection) == FileType.NIFTI:
+                    index = self.index(collection)
+                    if "Modality" in index.columns:
+                        summary["Modalities"] = index["Modality"].dropna().unique().tolist()
+                    else:
+                        summary["Modalities"] = []
+                    if "BodyPartExamined" in index.columns:
+                        summary["BodyPartsExamined"] = index["BodyPartExamined"].dropna().unique().tolist()
+                    else:
+                        summary["BodyPartsExamined"] = []
+                    if "SeriesInstanceUID" in index.columns:
+                        summary["SeriesCount"] = int(index["SeriesInstanceUID"].nunique())
+                    else:
+                        summary["SeriesCount"] = int(index["reference_id"].nunique())
+
+                elif self.file_type(collection) == FileType.DICOM:
+
+                    crawl_json = self.crawl_db(collection)
+                    for key in crawl_json:
+                        series = crawl_json[key][list(crawl_json[key].keys())[0]]
+                        if series["Modality"]:
+                            summary["Modalities"].add(series["Modality"])
+                        if series["BodyPartExamined"]:
+                            summary["BodyPartsExamined"].add(series["BodyPartExamined"])
+                        summary["SeriesCount"] += 1
+                    for key in summary:
+                        if isinstance(summary[key], set):
+                            summary[key] = list(summary[key])
+                    
+                collection_db[collection] = summary
 
         return collection_db
 
-    def display_summary(self) -> None:
+    def display_summary(self, update: bool = False) -> None:
         table = Table(title="Collections Summary")
         table.add_column("Collection", justify="right")
         table.add_column("BodyPartsExamined", justify="left")
@@ -193,7 +216,7 @@ class IndexedDatasets:
         table.add_column("Series Count", justify="right")
         table.add_column("Size", justify="right")
 
-        collection_db = self.summary
+        collection_db = self.summary(update)
 
         for collection, info in collection_db.items():
             table.add_row(
@@ -201,11 +224,13 @@ class IndexedDatasets:
                 ", ".join(info["BodyPartsExamined"]),
                 ", ".join(info["Modalities"]),
                 f"{info['SeriesCount']}",
-                info["Size"],
+                f"{info['Size']} GB",
             )
 
         print(table)
 
 if __name__ == "__main__":
-    store = IndexedDatasets(force_download=True)
-    print(store.collections[:10])
+    store = IndexedDatasets("/home/joshua-siraj/Documents/BHKLAB/med-image-index/indexed_datasets")
+    store.display_summary(update=True)
+
+    

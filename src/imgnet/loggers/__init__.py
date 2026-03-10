@@ -9,7 +9,7 @@ from tqdm.contrib.logging import logging_redirect_tqdm as _redirect_tqdm
 from .logging_config import DEFAULT_LOG_LEVEL, LoggingManager
 
 # Set the default log level from the environment variable or use the default
-DEFAULT_OR_ENV = os.environ.get("IMAGENET_LOG_LEVEL", DEFAULT_LOG_LEVEL)
+DEFAULT_OR_ENV = os.environ.get("IMGNET_LOG_LEVEL", DEFAULT_LOG_LEVEL)
 
 LOG_DIR_NAME = Path(".imgnet/logs")
 DEFAULT_LOG_FILENAME = "imgnet.log"
@@ -73,14 +73,14 @@ def temporary_log_level(
 
 
 def tqdm_logging_redirect(
-    logger_name: str = "imagenet",
+    logger_name: str = "imgnet",
 ) -> AbstractContextManager[None]:
     """Context manager to redirect logging output into tqdm for cleaner logging.
 
     Parameters
     ----------
     logger_name : str, optional
-        The name of the logger to redirect, by default "imagenet".
+        The name of the logger to redirect, by default "imgnet".
 
     Examples
     --------
@@ -96,7 +96,7 @@ def tqdm_logging_redirect(
     return _redirect_tqdm([logging.getLogger(logger_name)])
 
 
-logger = get_logger("imagenet", DEFAULT_OR_ENV)
+logger = get_logger("imgnet", DEFAULT_OR_ENV)
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 from idc_index import IDCClient
 
+from imgnet.utils import get_idc_client
 from imgnet.query import ValidQuery
 from imgnet.collections.store import IndexedDatasets
 from imgnet.download import download_collection
@@ -18,7 +19,7 @@ class ImgNet:
     ):
         self.output_path = Path(output_path)
         self.store = store
-        self.client = client
+        self.client = client if client is not None else get_idc_client()
 
     def download(self, collection: str, series_uids: list[str] | None = None) -> None:
         """Download a collection (or specific series within it).
@@ -32,9 +33,8 @@ class ImgNet:
             Ignored for non-TCIA sources which download the full collection.
         """
         download_collection(
-            collection=collection,
             output_path=self.output_path,
-            store=self.store,
+            config=self.store.source_config(collection),
             client=self.client,
             series_uids=series_uids,
         )
@@ -66,9 +66,8 @@ class ImgNet:
 
 
 if __name__ == "__main__":
-    client = IDCClient()
     store = IndexedDatasets(Path.cwd() / "indexed_datasets")
-    imgnet = ImgNet(output_path=Path("bruh"), store=store, client=client)
+    imgnet = ImgNet(output_path=Path("bruh"), store=store)
 
     imgnet.download(
         "4D-Lung",
