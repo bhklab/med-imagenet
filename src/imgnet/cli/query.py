@@ -2,8 +2,7 @@ import click
 from pathlib import Path
 import json
 
-from idc_index import IDCClient
-
+from imgnet.utils import get_idc_client
 from imgnet.imgnet import ImgNet
 from imgnet.query import ValidQuery
 from imgnet.collections.store import IndexedDatasets
@@ -126,7 +125,7 @@ def query(
     logger.info(f"Saved ValidQuery json to {output_path / 'valid_query.json'}.")
     
     store = IndexedDatasets(Path.cwd() / "indexed_datasets")
-    client = IDCClient() if download else None
+    client = get_idc_client() if download else None
     imgnet = ImgNet(output_path / "raw_data", store=store, client=client)
     results = imgnet.query(valid_query, download)
 
