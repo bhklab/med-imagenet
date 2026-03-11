@@ -58,15 +58,17 @@ class IndexedDatasets:
         print(path.resolve())
 
         if not path.exists() or force_download:
-            from huggingface_hub import snapshot_download
+            from huggingface_hub import snapshot_download, list_repo_commits
             from huggingface_hub.utils import disable_progress_bars, enable_progress_bars
             from tqdm.auto import tqdm as _tqdm
 
             repo_id = "BruhJosh/med-image-index"
+            latest_commit = list_repo_commits(repo_id=repo_id, repo_type="dataset")[0].title
             logger.warning(
                 "Indexed datasets not found at %s. "
-                "Downloading latest release from Hugging Face.",
+                "Downloading latest release from Hugging Face. Latest commit: %s",
                 path.resolve(),
+                latest_commit,
             )
             download_dir = path.parent
             download_dir.mkdir(parents=True, exist_ok=True)
