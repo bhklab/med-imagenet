@@ -16,6 +16,7 @@ from imgnet.collections.source import (
 )
 from imgnet.download.utils import _fetch_collection_size_idc
 from imgnet.download.dispatcher import get_collection_download_size_bytes
+from imgnet.collections.utils import _fetch_collection_description_tcia
 from imgnet.loggers import logger, tqdm_logging_redirect
 
 _ENV_VAR = "IMGNET_INDEX_DIR"
@@ -150,6 +151,17 @@ class IndexedDatasets:
             logger.error(f"Error getting size for collection {collection}: {e}")
             return 0.0
 
+    def description(self, collection: str) -> str:
+        """Return the description of *collection*."""
+        try:
+            if self.source_config(collection).source == "tcia":
+                return _fetch_collection_description_tcia(collection)
+            else:
+                return self.source_config(collection).description
+        except Exception as e:
+            logger.error(f"Error getting description for collection {collection}: {e}")
+            return ""
+
     # ---- summary / display ----
 
     def summary(self, update: bool = False) -> dict:
@@ -219,7 +231,6 @@ class IndexedDatasets:
         table.add_column("Size", justify="right")
         table.add_column("File Type", justify="left")
         table.add_column("Source", justify="left")
-
         collection_db = self.summary(update)
 
         for collection, info in collection_db.items():

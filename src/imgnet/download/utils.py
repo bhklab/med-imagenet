@@ -116,9 +116,9 @@ def _fetch_collection_size_idc(collection_id: str) -> float:
     """Fetch the size of a collection from the IDC index in GB."""
     collection_id = collection_id.lower().replace(" ", "_").replace("-", "_")
     client = get_idc_client()
-    collection = client.index[client.index["collection_id"] == collection_id]
+    size = client.collection_summary.loc[collection_id, "series_size_MB"]
 
-    return round(float(collection['series_size_MB'].sum() / 1000), 2)
+    return round(float(size / 1000), 2)
 
 
 def _post_unzip(output_path: Path, archive_filenames: list[str] | None = None) -> None:
