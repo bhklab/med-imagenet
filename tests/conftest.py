@@ -11,7 +11,7 @@ def client():
 
 @pytest.fixture(scope="module")
 def store():
-    return IndexedDatasets(Path.cwd() / "indexed_datasets")
+    return IndexedDatasets()
 
 @pytest.fixture(autouse=True)
 def disable_rich_live(monkeypatch):

@@ -6,6 +6,7 @@ import pandas as pd
 from pydantic import BaseModel, Field, field_validator
 
 from imgnet.collections.store import IndexedDatasets
+from imgnet.loggers import logger
 
 
 NUMERIC_OPS = {
@@ -24,14 +25,6 @@ class InvalidComparisonError(RuleError):
     """Exception raised when a Rule has an invalid comparison type."""
 
 
-class RulesValidationError(RuleError):
-    """Raised when rules field validation fails."""
-
-
-class RulesValidationParsingError(RulesValidationError):
-    """Raised when parsing a Rule from string fails."""
-
-
 class ValidQueryError(Exception):
     """Base exception for ValidQuery errors."""
 
@@ -42,6 +35,14 @@ class ModalitiesValidationError(ValidQueryError):
 
 class CollectionsValidationError(ValidQueryError):
     """Raised when collections field validation fails."""
+
+
+class RulesValidationError(ValidQueryError):
+    """Raised when rules field validation fails."""
+
+
+class RulesValidationParsingError(RulesValidationError):
+    """Raised when parsing a Rule from string fails."""
 
 
 class Rule(BaseModel):
@@ -200,4 +201,6 @@ class ValidQuery(BaseModel):
         """Return a DataFrame containing selected SeriesInstanceUID rows."""
         from imgnet.query.engine import run_query
 
-        return run_query(self, store)
+        query_results = run_query(self, store)
+        logger.info(f"Found {len(query_results)} matches to the query.")
+        return query_results

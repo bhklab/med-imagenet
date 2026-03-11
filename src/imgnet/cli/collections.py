@@ -1,5 +1,4 @@
 import click
-from pathlib import Path
 
 from imgnet.collections.store import IndexedDatasets
 

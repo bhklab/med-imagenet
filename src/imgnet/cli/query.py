@@ -114,8 +114,16 @@ def query(
         if isinstance(modalities, tuple):
             modalities = list(modalities)
         valid_query = ValidQuery(collections=collections, modalities=modalities, rules=rules) # 
-        logger.info(f"Generated ValidQuery: \ncollections: {collections}\nmodalities: {modalities}\nrules: {rules}")
+        logger.info(f"Generated ValidQuery: \ncollections: {collections}\nmodalities: {modalities}\nrules: {rules}\n")
     
+    store = IndexedDatasets()
+    client = get_idc_client() if download else None
+    imgnet = ImgNet(output_path / "raw_data", store=store, client=client)
+    results = imgnet.query(valid_query, download)
+
+    results.to_csv(output_path / 'query_results.csv')
+    logger.info(f"Saved query results to {output_path / 'query_results.csv'}.")
+
     with open(output_path / "valid_query_schema.json", "w") as f:
         json.dump(valid_query.model_json_schema(), f, indent=2)
     logger.info(f"Saved json schema to {output_path / 'valid_query_schema.json'}.")
@@ -123,11 +131,3 @@ def query(
     with open(output_path / "valid_query.json", "w") as f:
         json.dump(valid_query.model_dump(), f, indent=2)
     logger.info(f"Saved ValidQuery json to {output_path / 'valid_query.json'}.")
-    
-    store = IndexedDatasets(Path.cwd() / "indexed_datasets")
-    client = get_idc_client() if download else None
-    imgnet = ImgNet(output_path / "raw_data", store=store, client=client)
-    results = imgnet.query(valid_query, download)
-
-    results.to_csv(output_path / 'selected_dicoms.csv')
-    logger.info(f"Saved selected SeriesUIDs to {output_path / 'selected_dicoms.csv'}.")

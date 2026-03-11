@@ -210,11 +210,13 @@ class IndexedDatasets:
 
     def display_summary(self, update: bool = False) -> None:
         table = Table(title="Collections Summary")
-        table.add_column("Collection", justify="right")
+        table.add_column("Collection", justify="left")
         table.add_column("BodyPartsExamined", justify="left")
         table.add_column("Modalities", justify="left")
         table.add_column("Series Count", justify="right")
         table.add_column("Size", justify="right")
+        table.add_column("File Type", justify="left")
+        table.add_column("Source", justify="left")
 
         collection_db = self.summary(update)
 
@@ -225,6 +227,8 @@ class IndexedDatasets:
                 ", ".join(info["Modalities"]),
                 f"{info['SeriesCount']}",
                 f"{info['Size']} GB",
+                f"{self.file_type(collection).value.upper()}",
+                f"{self.source_config(collection).source.upper()}",
             )
 
         print(table)
