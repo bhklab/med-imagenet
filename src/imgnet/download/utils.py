@@ -8,6 +8,14 @@ from imgnet.utils import get_idc_client
 from imgnet.loggers import logger
 
 
+def list_s3_bucket_keys(bucket_name: str) -> list[str]:
+    """List all object keys in an S3 bucket (anonymous). Skips directory markers."""
+    fs = s3fs.S3FileSystem(anon=True)
+    prefix = f"{bucket_name}/"
+    paths = fs.find(bucket_name)
+    return [p[len(prefix) :] for p in paths if not p.endswith("/")]
+
+
 def download_file_from_s3(
     bucket_name: str,
     file_name: str,

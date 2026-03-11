@@ -14,6 +14,7 @@ from imgnet.download.utils import (
     download_file_from_s3,
     download_from_dropbox,
     download_from_zenodo,
+    list_s3_bucket_keys,
     _post_unzip,
 )
 from imgnet.loggers import logger, tqdm_logging_redirect
@@ -45,14 +46,21 @@ def _download_dropbox(config: DropboxSource, output_path: Path, dry_run: bool = 
 
 
 def _download_s3(config: S3Source, output_path: Path, dry_run: bool = False) -> int | None:
-    """If dry_run=True, return total size in bytes; otherwise None."""
+    """If dry_run=True, return total size in bytes; otherwise None.
+    If config.filenames is None, downloads all files in the bucket."""
+    if config.filenames is None:
+        filenames = list_s3_bucket_keys(config.bucket_name)
+        if not dry_run:
+            logger.info(f"Downloading all {len(filenames)} files from S3 bucket {config.bucket_name}")
+    else:
+        filenames = config.filenames
     if dry_run:
         total = 0
-        for file_name in config.filenames or []:
+        for file_name in filenames:
             size = download_file_from_s3(config.bucket_name, file_name, output_path, dry_run=True)
             total += size or 0
         return total
-    for file_name in config.filenames or []:
+    for file_name in filenames:
         logger.info(f"Downloading file '{file_name}' from S3 bucket {config.bucket_name}")
         download_file_from_s3(config.bucket_name, file_name, output_path)
     return None
