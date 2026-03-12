@@ -185,8 +185,10 @@ class IndexedDatasets:
                 summary = {
                     "Modalities": set(),
                     "BodyPartsExamined": set(),
-                    "SeriesCount": 0,
-                    "Size": self.collection_size(collection)
+                    "Images": len(self.index(collection)),
+                    "Size": self.collection_size(collection),
+                    "File Type": self.file_type(collection).value.upper(),
+                    "Source": self.source_config(collection).source.upper(),
                 }
 
                 if self.file_type(collection) == FileType.NIFTI:
@@ -199,10 +201,6 @@ class IndexedDatasets:
                         summary["BodyPartsExamined"] = index["BodyPartExamined"].dropna().unique().tolist()
                     else:
                         summary["BodyPartsExamined"] = []
-                    if "SeriesInstanceUID" in index.columns:
-                        summary["SeriesCount"] = int(index["SeriesInstanceUID"].nunique())
-                    else:
-                        summary["SeriesCount"] = int(index["reference_id"].nunique())
 
                 elif self.file_type(collection) == FileType.DICOM:
 
@@ -213,7 +211,6 @@ class IndexedDatasets:
                             summary["Modalities"].add(series["Modality"])
                         if series["BodyPartExamined"]:
                             summary["BodyPartsExamined"].add(series["BodyPartExamined"])
-                        summary["SeriesCount"] += 1
                     for key in summary:
                         if isinstance(summary[key], set):
                             summary[key] = list(summary[key])
@@ -227,7 +224,7 @@ class IndexedDatasets:
         table.add_column("Collection", justify="left")
         table.add_column("BodyPartsExamined", justify="left")
         table.add_column("Modalities", justify="left")
-        table.add_column("Series Count", justify="right")
+        table.add_column("Images", justify="right")
         table.add_column("Size", justify="right")
         table.add_column("File Type", justify="left")
         table.add_column("Source", justify="left")
@@ -238,10 +235,10 @@ class IndexedDatasets:
                 collection,
                 ", ".join(info["BodyPartsExamined"]),
                 ", ".join(info["Modalities"]),
-                f"{info['SeriesCount']}",
+                f"{info['Images']}",
                 f"{info['Size']} GB",
-                f"{self.file_type(collection).value.upper()}",
-                f"{self.source_config(collection).source.upper()}",
+                f"{info['File Type']}",
+                f"{info['Source']}",
             )
 
         print(table)
