@@ -1,6 +1,7 @@
 import pytest
 from pathlib import Path
 import shutil
+import tempfile
 
 from idc_index import IDCClient
 
@@ -31,11 +32,13 @@ def test_imgnet_query(
         client: IDCClient,
         store: IndexedDatasets,
 ) -> None:
-    output_dir = Path("./tests/test_dir/ImgNet_query_output")
+    output_dir = Path(tempfile.mkdtemp())
     query = ValidQuery(collections=collections, modalities=modalities, rules=rules)
-    df = ImgNet(output_path=output_dir, store=store, client=client).query(valid_query=query, download=download)
+    imgnet = ImgNet(output_path=output_dir, store=store, client=client)
+    df = imgnet.query(valid_query=query)
     assert df["SeriesInstanceUID"].tolist() == result # check if the query returns the expected series.
     if download:
+        imgnet.download(df)
         assert output_dir.exists(), "Download failed: output dir does not exist."
         assert any(output_dir.iterdir()), "Download failed: No files downloaded."
         shutil.rmtree(output_dir, ignore_errors=True)

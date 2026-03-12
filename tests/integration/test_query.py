@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 from imgnet.query import ValidQuery, Rule, ValidQueryError, CollectionsValidationError
 from imgnet.collections.store import IndexedDatasets
 
@@ -11,7 +12,7 @@ from imgnet.collections.store import IndexedDatasets
 
     # Test Modality Validation
     ("all", ["CT,RTSTRUCT", "CT,SEG"], None, None),
-    ("all", 1, None, ValidQueryError),
+    ("all", 1, None, ValidationError),
 
     # Test Rule Validation
     ("all", "all", {"CT": "TagValue == 1"}, None),

@@ -1,6 +1,9 @@
 import operator
 import re
 from typing import Any
+import msgpack
+import base64
+import zlib
 
 import pandas as pd
 from pydantic import BaseModel, Field, field_validator
@@ -48,12 +51,16 @@ class RulesValidationParsingError(RulesValidationError):
 class Rule(BaseModel):
     """Comparison rule between one DICOM tag and a value or list of values."""
 
-    tag: str = Field(description="The DICOM tag the rule applies to.")
-    value: str | list[str] = Field(description="The value to compare against.")
+    tag: str = Field(
+        description="The DICOM tag the rule applies to.",
+    )
+    value: str | list[str] = Field(
+        description="The value to compare against.",
+    )
     comparison: str = Field(
         description=(
             "The comparison type. `==`/`!=` interpret the comparison value as regex."
-        )
+        ),
     )
 
     def evaluate(self, dicom_element: dict) -> bool:
@@ -136,29 +143,6 @@ class ValidQuery(BaseModel):
         ],
     )
 
-    @field_validator("collections", mode="after")
-    def validate_collections(cls, value: str | list[str]) -> str | list[str]:
-        if isinstance(value, list):
-            if not all(isinstance(collection, str) for collection in value):
-                raise CollectionsValidationError(
-                    "All collection names must be strings."
-                )
-        elif not isinstance(value, str):
-            raise CollectionsValidationError(
-                f"collections must be str | list[str], got {type(value)}."
-            )
-        return value
-
-    @field_validator("modalities", mode="before")
-    def validate_modalities(cls, value: Any) -> str | list[str]:
-        if isinstance(value, str):
-            return value
-        if isinstance(value, list) and all(isinstance(item, str) for item in value):
-            return value
-        raise ModalitiesValidationError(
-            f"modalities must be of type str | list[str]. Got type {type(value)} instead."
-        )
-
     @field_validator("rules", mode="before")
     def validate_rules(cls, value: Any) -> dict[str, Rule | list[Rule]] | None:
         if value is None:
@@ -196,6 +180,23 @@ class ValidQuery(BaseModel):
                     f"rules[{key!r}] must be str, dict, Rule, or list - got {type(item)}."
                 )
         return result
+
+    def to_token(self) -> str:
+        raw = self.model_dump(
+            exclude_none=True,
+            exclude_defaults=True,
+            exclude_unset=True,
+        )
+        packed = msgpack.packb(raw)
+        compressed = zlib.compress(packed, level=9)
+        return base64.urlsafe_b64encode(compressed).decode()
+
+    @classmethod
+    def from_token(cls, token: str) -> "ValidQuery":
+        compressed = base64.urlsafe_b64decode(token)
+        packed = zlib.decompress(compressed)
+        data = msgpack.unpackb(packed)
+        return cls.model_validate(data)
 
     def process(self, store: IndexedDatasets) -> pd.DataFrame:
         """Return a DataFrame containing selected SeriesInstanceUID rows."""

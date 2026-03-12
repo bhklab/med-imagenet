@@ -2,7 +2,6 @@ import click
 from pathlib import Path
 import json
 
-from imgnet.utils import get_idc_client
 from imgnet.imgnet import ImgNet
 from imgnet.query import ValidQuery
 from imgnet.collections.store import IndexedDatasets
@@ -55,12 +54,6 @@ from imgnet.loggers import logger
     default=None,
     help="JSON string of filter rules."
 )
-@click.option(
-    "--download",
-    "-d",
-    is_flag=True,
-    help="Download queried datasets."
-)
 
 def query(
     output_path: Path,
@@ -68,7 +61,6 @@ def query(
     collections: str | list[str],
     modalities: str | list[str],
     rules: str,
-    download: bool,
 ) -> None:
     """
     Query crawled TCIA datasets and optionally download selected DICOMs using idc-index.
@@ -88,18 +80,10 @@ def query(
         The list of modality queries to run, if `input_path` is not supplied.
     rules: `str`
         A JSON string representation of the filter rules to apply to the query, if `input_path` is not supplied.
-    download: `bool`
-        If true, downloads the selected series' using idc-index.
     """
     output_path = Path(output_path)
     output_path.mkdir(exist_ok=True)
 
-    if download:
-        (output_path/ "raw_data").mkdir(exist_ok=True)
-        if any((output_path / "raw_data").iterdir()):
-            logger.error(f"{output_path/'raw_data'} already contains files. Please remove the raw_data directory and try again.")
-            raise FileExistsError(f"{output_path}/raw_data already contains files.")
-        
     if input_path:
         with open(input_path, 'rb') as f:
             valid_query = ValidQuery.model_validate_json(f.read())
@@ -117,9 +101,8 @@ def query(
         logger.info(f"Generated ValidQuery: \ncollections: {collections}\nmodalities: {modalities}\nrules: {rules}\n")
     
     store = IndexedDatasets()
-    client = get_idc_client() if download else None
-    imgnet = ImgNet(output_path / "raw_data", store=store, client=client)
-    results = imgnet.query(valid_query, download)
+    imgnet = ImgNet(output_path, store=store)
+    results = imgnet.query(valid_query)
 
     results.to_csv(output_path / 'query_results.csv')
     logger.info(f"Saved query results to {output_path / 'query_results.csv'}.")
@@ -131,3 +114,5 @@ def query(
     with open(output_path / "valid_query.json", "w") as f:
         json.dump(valid_query.model_dump(), f, indent=2)
     logger.info(f"Saved ValidQuery json to {output_path / 'valid_query.json'}.")
+
+    click.echo(str(output_path / "query_results.csv"))

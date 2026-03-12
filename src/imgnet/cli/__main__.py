@@ -7,6 +7,7 @@ from .query import query
 from .collections import collections
 from .update_index import update_index
 from .sectioned_group import SectionedGroup, CommandRegistry
+from .download import download
 
 # Create a shared registry
 registry = CommandRegistry()
@@ -14,6 +15,7 @@ registry = CommandRegistry()
 # Register groups and commands
 registry.create_group("core commands", "Main subcommands for the imgnet package.")
 registry.add('core commands', query)
+registry.add('core commands', download)
 
 registry.create_group("utilities", "Tools for working with imgnet collections.")
 registry.add("utilities", collections)

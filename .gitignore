@@ -144,5 +144,6 @@ notebooks/*.tsv
 indexed_datasets/
 
 temp
+temp.py
 
 .DS_Store

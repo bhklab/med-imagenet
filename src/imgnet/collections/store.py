@@ -56,7 +56,7 @@ class IndexedDatasets:
             path = default_indexed_datasets_path()
 
         path = Path(path)
-        print(path.resolve())
+        logger.info(f"Indexed datasets path: {path.resolve()}")
 
         if not path.exists() or force_download:
             from huggingface_hub import snapshot_download, list_repo_commits

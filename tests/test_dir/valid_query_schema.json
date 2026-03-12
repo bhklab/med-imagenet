@@ -1,7 +1,7 @@
 {
   "$defs": {
     "Rule": {
-      "description": "Pydantic for implementing filter rules. \nA Rule is essentially a comparison between a DICOM tag and a filter value. \n\nAttributes\n----------\n\n    tag: str\n        The DICOM tag the rule applies to.\n    value: str\n        The value to compare the DICOM tag to.\n    comparison: str\n        The type of comparison to perform. \n    \nNotes\n-----\n\nSupported comparison types include\n- `=` or `==`: Equality.\n- `!=`: Inequality.\nor a list of patterns which the `tag` must NOT match.\n- `<`: Greater than. \n- `<=`: Greater or equal to. \n- `>`: Less than.\n- `>=`: Less or equal to. \n\nFor equality and inequality comparisons, `value` is treated as a regex pattern\nor a list of regex patterns. The `tag` value must match one or more patterns \nfor equality, and must not match any patterns for inequality. In the case of \na list, only one element of the list needs to pass the comparison.\n\n\nAll other comparisons require `value` to be numeric, and the `tag` value \nmust be a number or a list of numbers. In the case of a list, ALL elements \nof the list must pass the comparison. ",
+      "description": "Comparison rule between one DICOM tag and a value or list of values.",
       "properties": {
         "tag": {
           "description": "The DICOM tag the rule applies to.",
@@ -24,7 +24,7 @@
           "title": "Value"
         },
         "comparison": {
-          "description": "The comparison type. Note that == and != both interpret the comparison value as a regex pattern.",
+          "description": "The comparison type. `==`/`!=` interpret the comparison value as regex.",
           "title": "Comparison",
           "type": "string"
         }
@@ -38,7 +38,7 @@
       "type": "object"
     }
   },
-  "description": "Pydantic Model which represents a query on Med-ImageNet.\n\nAttributes\n----------\n    collections: str | list[str], default=\"all\"\n        The collection/collections to query.\n        Collections must be a subset of SUPPORTED_COLLECTIONS.\n    modalities: str | list[str]\n        The modalities to be queried, separated by commas.\n    rules: dict[str, Rule | list[Rules]]\n        The filter rules to apply to each modality.\n    \n    Notes\n    -----\n\n    Examples of Modalities:\n    \"CT,RTSTRUCT\" means \"return only RTSTRUCTs and the CTs \n    they reference\". CTs with no references are not returned.\n\n    [\"CT,RTSTRUCT\", \"CT,SEG\"] means \"return only RTSTRUCTS and the CTs \n    they reference, plus SEGs and the CTs that they reference\".\n\n    Casting Strings to Rules:\n\n    If rules is a dict[str, str | list[str]], the dict elements will be \n    casted to Rule. The proper string representation of Rule is:\n    \"<DICOM tag name> <comparison symbol> <comparison value>\".\n\n    Example rule input:\n\n    {\n        \"CT\": \"SliceThickness == 2\",\n        \"RTSTRUCT\": \"BodyPartExamined == LUNG\"\n    }",
+  "description": "Pydantic model representing a Med-ImageNet query.",
   "properties": {
     "collections": {
       "anyOf": [

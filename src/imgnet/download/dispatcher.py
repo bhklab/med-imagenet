@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Callable
-
-from idc_index import IDCClient
+from tqdm import tqdm
 
 from imgnet.collections.source import (
     DropboxSource,
@@ -23,17 +22,16 @@ from imgnet.loggers import logger, tqdm_logging_redirect
 def _download_tcia(
     config: TCIASource,
     output_path: Path,
-    client: IDCClient | None = None,
-    series_uids: list[str] | None = None,
+    series_uids: list[str],
 ) -> None:
+
     from imgnet.utils import get_idc_client
-    client = client if client is not None else get_idc_client()
-    for uid in series_uids or []:
-        logger.info(f"Downloading DICOM series {uid}")
-        save_path = output_path / uid
-        save_path.mkdir(exist_ok=True, parents=True)
-        with tqdm_logging_redirect():
-            client.download_dicom_series(uid, save_path)
+    client = get_idc_client()
+
+    save_path = output_path
+    save_path.mkdir(exist_ok=True, parents=True)
+    with tqdm_logging_redirect():
+        client.download_dicom_series(series_uids, save_path, dirTemplate="%PatientID/%StudyInstanceUID/%Modality_%SeriesInstanceUID")
 
 
 def _download_dropbox(config: DropboxSource, output_path: Path, dry_run: bool = False) -> int | None:
@@ -122,30 +120,26 @@ def get_collection_download_size_bytes(config: SourceConfig) -> float:
 def download_collection(
     output_path: Path,
     config: SourceConfig,
-    client: IDCClient | None = None,
-    series_uids: list[str] | None = None,
+    instance_ids: list[str] | None = [],
 ) -> None:
     """Download a collection using the transport specified in its ``source.json``.
 
     Parameters
     ----------
-    collection : str
-        Name of the collection to download.
     output_path : Path
         Directory to save downloaded files into.
     config : SourceConfig
         The source configuration.
-    client : IDCClient | None
-        Required for TCIA/DICOM downloads. Ignored for other sources.
-    series_uids : list[str] | None
-        For TCIA downloads, the specific series UIDs to download.
-        Ignored for non-TCIA sources (which download the entire collection).
+    instance_ids : list[str] | None
+        The specific instance IDs to download.
     """
-    output_path.mkdir(exist_ok=True, parents=True)
-
+    output_path.mkdir(parents=True, exist_ok=True)
+    
     match config:
         case TCIASource():
-            _download_tcia(config, output_path, client=client, series_uids=series_uids)
+            if not instance_ids:
+                raise ValueError("instance_ids(series UIDs) are required for TCIA downloads")
+            _download_tcia(config, output_path, series_uids=instance_ids)
         case DropboxSource():
             _download_dropbox(config, output_path, dry_run=False)
         case S3Source():
@@ -155,3 +149,26 @@ def download_collection(
 
     if config.post_download:
         _run_post_steps(config.post_download, output_path)
+
+    if config.source != "tcia" and instance_ids:
+        logger.info(f"Deleting files that are not in the instance_ids list for {output_path}")
+        # For non-TCIA sources, we need to download the entire collection. 
+        # Then delete the instances that are not in the instance_ids list.
+        # The instance_ids list is a list of relative paths to the files in the output_path.
+        instance_ids_set = set(instance_ids)
+        for file in tqdm(output_path.rglob("*"), desc="Deleting files"):
+            if file.is_file():
+                relative_path = file.relative_to(output_path)
+                if str(relative_path) not in instance_ids_set:
+                    file.unlink()
+
+        logger.info(f"Deleting empty directories for {output_path}")
+        for dirpath in sorted(
+            (p for p in output_path.rglob("*") if p.is_dir()),
+            key=lambda p: len(p.parts),
+            reverse=True,
+        ):
+            if not any(dirpath.iterdir()):
+                dirpath.rmdir()
+
+
