@@ -118,6 +118,38 @@ class Rule(BaseModel):
 
         return False
 
+    def mask(self, df: pd.DataFrame) -> pd.Series:
+        """Return a boolean Series over *df*: True for rows accepted by this rule.
+
+        Vectorized counterpart of ``evaluate`` for bulk filtering.
+        """
+        col = df.get(self.tag)
+        if col is None:
+            return pd.Series(False, index=df.index)
+
+        col = col.astype(str)
+
+        match self.comparison:
+            case "==" | "=":
+                patterns = [self.value] if isinstance(self.value, str) else self.value
+                combined = "|".join(f"(?:{p})" for p in patterns)
+                return col.str.match(combined, na=False)
+
+            case "!=":
+                patterns = [self.value] if isinstance(self.value, str) else self.value
+                combined = "|".join(f"(?:{p})" for p in patterns)
+                return ~col.str.match(combined, na=False)
+
+            case ">" | "<" | ">=" | "<=":
+                if isinstance(self.value, list):
+                    raise InvalidComparisonError(
+                        f"{self.comparison} comparison only compatible with numeric arguments, not list."
+                    )
+                op_fn = NUMERIC_OPS[self.comparison]
+                return op_fn(pd.to_numeric(col, errors="coerce"), float(self.value)).fillna(False)
+
+        return pd.Series(False, index=df.index)
+
 
 class ValidQuery(BaseModel):
     """Pydantic model representing a Med-ImageNet query."""

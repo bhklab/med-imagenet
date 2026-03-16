@@ -17,6 +17,7 @@ dependencies = [
     "platformdirs >=4, <5",
     "huggingface_hub >=0.20, <1",
     "msgpack >=1.1.2, <2",
+    "orjson >=3, <4",
 ]
 
 

@@ -1,11 +1,11 @@
 import functools
-import json
 from pathlib import Path
 
 import pandas as pd
 from rich import print
 from rich.table import Table
 from tqdm import tqdm
+import orjson
 
 from imgnet.collections.source import (
     FileType,
@@ -70,6 +70,7 @@ class IndexedDatasets:
                 enable_progress_bars()
 
         self.path = path
+        self._collection_cache: dict[str, "Collection"] = {}
 
     @property
     def imgtools_path(self) -> Path:
@@ -79,7 +80,7 @@ class IndexedDatasets:
     def summary_path(self) -> Path:
         return self.path / "collections_summary.json"
 
-    @property
+    @functools.cached_property
     def collections(self) -> list[str]:
         """Collection names derived from subdirectories of ``.imgtools/``."""
         return sorted(
@@ -89,10 +90,12 @@ class IndexedDatasets:
         )
 
     def get_collection(self, name: str) -> "Collection":
-        """Return a Collection for the given name. Validates that the collection exists."""
+        """Return a cached Collection for the given name. Validates that the collection exists."""
         if name not in self.collections:
             raise ValueError(f"Unknown collection: {name!r}. Known: {self.collections}")
-        return Collection(name=name, path=self.imgtools_path / name)
+        if name not in self._collection_cache:
+            self._collection_cache[name] = Collection(name=name, path=self.imgtools_path / name)
+        return self._collection_cache[name]
 
     def crawl_db(self, collection: str) -> dict:
         """Return the parsed ``crawl_db.json`` for *collection*."""
@@ -149,12 +152,11 @@ class IndexedDatasets:
         if not self.summary_path.exists() or update:
             logger.info("Collections summary not found or update is True. Building new summary.")
             collection_db = self._build_collection_db()
-            with open(self.summary_path, "w") as f:
-                json.dump(collection_db, f)
+            with self.summary_path.open("wb") as f:
+                f.write(orjson.dumps(collection_db))
             return collection_db
-        with open(self.summary_path, "r") as f:
-            logger.info("Loading collections summary from %s.", self.summary_path)
-            return json.load(f)
+        logger.info("Loading collections summary from %s.", self.summary_path)
+        return orjson.loads(self.summary_path.read_bytes())
 
     def _build_collection_db(self) -> dict:
         collection_db = {}
@@ -209,8 +211,7 @@ class Collection:
         if self.file_type != FileType.DICOM:
             logger.warning(f"Crawl db not supported for collection {self.name} of type {self.file_type}. Returning empty dictionary.")
             return {}
-        with open(db_path, "r") as f:
-            return json.load(f)
+        return orjson.loads(db_path.read_bytes())
 
     @functools.cached_property
     def source_config(self) -> SourceConfig:
@@ -218,8 +219,7 @@ class Collection:
         config_path = self.path / "source.json"
         if not config_path.exists():
             return TCIASource()
-        with open(config_path, "r") as f:
-            return source_adapter.validate_python(json.load(f))
+        return source_adapter.validate_python(orjson.loads(config_path.read_bytes()))
 
     @property
     def file_type(self) -> FileType:
@@ -227,8 +227,7 @@ class Collection:
 
     @functools.cached_property
     def summary(self) -> dict:
-        with open(self.indexed_datasets_path / "collections_summary.json", "r") as f:
-            return json.load(f)[self.name]
+        return orjson.loads((self.indexed_datasets_path / "collections_summary.json").read_bytes())[self.name]
 
     @functools.cached_property
     def collection_size(self) -> float:

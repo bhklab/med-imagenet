@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 from imgtools.dicom import Interlacer
 from typing import TYPE_CHECKING
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from imgnet.collections.store import IndexedDatasets
 from imgnet.collections.source import FileType
@@ -33,15 +34,28 @@ def run_query(valid_query: "ValidQuery", store: IndexedDatasets) -> pd.DataFrame
     if isinstance(modality_queries, str):
         modality_queries = [modality_queries]
 
-    matches = []
-    logger.info("Running query...")
-    for collection in collections:        
-        if store.file_type(collection) == FileType.DICOM:
-            matches.append(_run_query_dicom(collection, store, modality_queries, rules))
-        elif store.file_type(collection) == FileType.NIFTI:
-            matches.append(_run_query_nifti(collection, store, modality_queries, rules))
+    def _query_one(collection: str) -> pd.DataFrame:
+        file_type = store.file_type(collection)
+        if file_type == FileType.DICOM:
+            return _run_query_dicom(collection, store, modality_queries, rules)
+        elif file_type == FileType.NIFTI:
+            return _run_query_nifti(collection, store, modality_queries, rules)
         else:
-            raise ValueError(f"Unsupported file type for collection {collection}: {store.file_type(collection)}")
+            raise ValueError(f"Unsupported file type for collection {collection}: {file_type}")
+
+    logger.info("Running query...")
+
+    if len(collections) == 1:
+        matches = [_query_one(collections[0])]
+    else:
+        matches = []
+        with ThreadPoolExecutor() as executor:
+            futures = {
+                executor.submit(_query_one, col): col
+                for col in collections
+            }
+            for future in as_completed(futures):
+                matches.append(future.result())
 
     return pd.concat(matches, ignore_index=True)
 
@@ -69,33 +83,41 @@ def _run_query_dicom(
             [node.SeriesInstanceUID for node in group] for group in query_result
         ]
 
+    if not modality_matches:
+        index_df = index_df.iloc[0:0].copy()
+        index_df["Collection"] = collection
+        return index_df
+
+    # Flatten crawl_db metadata into a DataFrame keyed by SeriesInstanceUID
+    all_uids = [uid for group in modality_matches for uid in group]
+    records = {}
+    for uid in all_uids:
+        entry = crawl_db[uid]
+        records[uid] = entry[next(iter(entry))]
+    meta_df = pd.DataFrame.from_dict(records, orient="index")
+
+    # Vectorized rule evaluation via Rule.mask()
+    accepted = pd.Series(True, index=meta_df.index)
+    if rules and "Modality" in meta_df.columns:
+        for modality, modality_rules in rules.items():
+            if isinstance(modality_rules, Rule):
+                modality_rules = [modality_rules]
+            is_mod = meta_df["Modality"] == modality
+            rule_mask = is_mod.copy()
+            for rule in modality_rules:
+                rule_mask &= rule.mask(meta_df)
+            accepted &= (~is_mod | rule_mask)
+
+    accepted_uids = set(meta_df.index[accepted])
+
+    # If root node rejected, skip entire group
     result = []
     for group in modality_matches:
-        for series in group:
-            # crawl_db nests an extra key layer between series UID and metadata
-            for key in crawl_db[series]:
-                dicom = crawl_db[series][key]
+        if group[0] not in accepted_uids:
+            continue
+        result.extend(uid for uid in group if uid in accepted_uids)
 
-            modality = dicom["Modality"]
-            accept_series = True
-            if rules:
-                modality_rules = rules.get(modality)
-                if isinstance(modality_rules, Rule):
-                    modality_rules = [modality_rules]
-                if modality_rules:
-                    for rule in modality_rules:
-                        if not rule.evaluate(dicom):
-                            accept_series = False
-                            break
-
-            if accept_series:
-                result.append(series)
-            elif series == group[0]:
-                # If the root node is not selected, children are skipped to avoid
-                # selecting masks that reference an unselected DICOM.
-                break
-
-    index_df = index_df[index_df["SeriesInstanceUID"].isin(result)]
+    index_df = index_df[index_df["SeriesInstanceUID"].isin(result)].copy()
     index_df["Collection"] = collection
     return index_df
 
@@ -109,43 +131,30 @@ def _run_query_nifti(
 
     index_df = store.index(collection)
 
-    modality_matches = []
-
+    # Vectorized modality filtering
+    modality_mask = pd.Series(False, index=index_df.index)
     for query in modality_queries:
         if query == "all" or query is None:
-            query_result = [[idx] for idx in index_df.index.tolist()]
+            modality_mask[:] = True
+            break
+        elif "," in query:
+            modality_mask |= index_df["Modality"].isin(query.split(","))
         else:
-            if "," in query:
-                query_result = [
-                    group.index.tolist() 
-                    for _, group in index_df[index_df["Modality"].isin(query.split(","))].groupby("reference_id")
-                ]
-            else:
-                query_result = [[idx] for idx in index_df[index_df["Modality"] == query].index.tolist()]
-            
-        modality_matches += query_result
+            modality_mask |= index_df["Modality"] == query
 
-    result = []
-    for group in modality_matches:
-        for series_index in group:
+    filtered = index_df[modality_mask]
 
-            series = index_df.iloc[series_index]
+    # Vectorized rule evaluation via Rule.mask()
+    if rules:
+        for modality, modality_rules in rules.items():
+            if isinstance(modality_rules, Rule):
+                modality_rules = [modality_rules]
+            is_mod = filtered["Modality"] == modality
+            rule_mask = is_mod.copy()
+            for rule in modality_rules:
+                rule_mask &= rule.mask(filtered)
+            filtered = filtered[~is_mod | rule_mask]
 
-            modality = series["Modality"]
-            accept_series = True
-            if rules:
-                modality_rules = rules.get(modality)
-                if isinstance(modality_rules, Rule):
-                    modality_rules = [modality_rules]
-                if modality_rules:
-                    for rule in modality_rules:
-                        if not rule.evaluate(series):
-                            accept_series = False
-                            break
-
-            if accept_series:
-                result.append(series_index)
-
-    index_df = index_df.iloc[result]
-    index_df["Collection"] = collection
-    return index_df
+    filtered = filtered.copy()
+    filtered["Collection"] = collection
+    return filtered
