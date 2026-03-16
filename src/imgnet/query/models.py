@@ -184,8 +184,9 @@ class ValidQuery(BaseModel):
     )
 
     @field_validator("rules", mode="before")
+    @classmethod
     def validate_rules(
-        self, value: Any
+        cls, value: Any
     ) -> dict[str, Rule | list[Rule]] | None:  # noqa: PLR0912 ANN401
         if value is None:
             return None

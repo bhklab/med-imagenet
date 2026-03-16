@@ -293,7 +293,7 @@ class Collection:
     def supported_query_tags(self) -> dict[str, list[str]]:
         modalities = self.summary["Modalities"]
 
-        supported_tags = dict()
+        supported_tags: dict[str, set[str]] = {}
         for modality in modalities:
             supported_tags[modality] = set()
 
@@ -329,6 +329,7 @@ class Collection:
             "File Type": self.file_type.value.upper(),
             "Source": self.source_config.source.upper(),
         }
+        
         if self.file_type == FileType.NIFTI:
             index = self.index
             if "Modality" in index.columns:
@@ -348,9 +349,9 @@ class Collection:
             for _, value in crawl_json.items():
                 series = value[next(iter(value))]
                 if series.get("Modality"):
-                    summary["Modalities"].add(series["Modality"])
+                    summary["Modalities"].add(series["Modality"]) # type: ignore
                 if series.get("BodyPartExamined"):
-                    summary["BodyPartsExamined"].add(
+                    summary["BodyPartsExamined"].add( # type: ignore
                         series["BodyPartExamined"]
                     )
             for key, value in summary.items():

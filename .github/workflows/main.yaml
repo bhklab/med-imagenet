@@ -48,3 +48,26 @@ jobs:
       - name: Build and deploy documentation (only on push to main)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: pixi run -e docs mike deploy --push dev devel
+
+  ################################################################################################
+  Tests:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        env: ["py310", "py311", "py312"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Pixi
+        uses: prefix-dev/setup-pixi@v0.8.14
+        with:
+          environments: ${{ matrix.env }}
+          pixi-version: v0.41.3
+          cache: true
+          locked: false
+      - name: Run pytest
+        run: |
+          pixi run -e ${{ matrix.env }} pytest -s --no-cov --numprocesses=auto
+

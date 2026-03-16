@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable
+from typing import Callable, cast
 
 from tqdm import tqdm
 
@@ -41,10 +41,10 @@ def _download_tcia(
 
 def _download_dropbox(
     config: DropboxSource, output_path: Path, dry_run: bool = False
-) -> int | None:
+) -> float | None:
     """If dry_run=True, return size in bytes; otherwise None."""
     if dry_run:
-        return download_from_dropbox(config.url, output_path, dry_run=True)
+        return cast(float, download_from_dropbox(config.url, output_path, dry_run=True))
     logger.info(f"Downloading files from Dropbox URL {config.url}")
     download_from_dropbox(config.url, output_path)
     return None
@@ -52,7 +52,7 @@ def _download_dropbox(
 
 def _download_s3(
     config: S3Source, output_path: Path, dry_run: bool = False
-) -> int | None:
+) -> float | None:
     """If dry_run=True, return total size in bytes; otherwise None.
     If config.filenames is None, downloads all files in the bucket."""
     if config.filenames is None:
@@ -64,7 +64,7 @@ def _download_s3(
     else:
         filenames = config.filenames
     if dry_run:
-        total = 0
+        total: float = 0
         for file_name in filenames:
             size = download_file_from_s3(
                 config.bucket_name, file_name, output_path, dry_run=True
@@ -81,15 +81,15 @@ def _download_s3(
 
 def _download_zenodo(
     config: ZenodoSource, output_path: Path, dry_run: bool = False
-) -> int | None:
+) -> float | None:
     """If dry_run=True, return total size in bytes; otherwise None."""
     if dry_run:
-        return download_from_zenodo(
+        return cast(float, download_from_zenodo(
             config.record_id,
             output_path,
             filenames=config.filenames,
             dry_run=True,
-        )
+        ))
     if config.filenames is None:
         logger.info(
             f"Downloading all files from Zenodo record {config.record_id}"

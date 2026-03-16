@@ -104,7 +104,7 @@ def query(
             collections = list(collections)
         if isinstance(modalities, tuple):
             modalities = list(modalities)
-        valid_query = ValidQuery(collections=collections, modalities=modalities, rules=rules) # 
+        valid_query = ValidQuery(collections=collections, modalities=modalities, rules=rules) # type: ignore
         logger.info(f"Generated ValidQuery: \ncollections: {collections}\nmodalities: {modalities}\nrules: {rules}\n")
     
     store = IndexedDatasets()

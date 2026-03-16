@@ -68,7 +68,7 @@ def _run_query_dicom(
     collection: str,
     store: IndexedDatasets,
     modality_queries: list[str],
-    rules: dict[str, Rule | list[Rule]],
+    rules: dict[str, Rule | list[Rule]] | None,
 ) -> pd.DataFrame:
     from imgnet.query.models import Rule
 
@@ -120,7 +120,7 @@ def _run_query_dicom(
     accepted_uids = set(meta_df.index[accepted])
 
     # If root node rejected, skip entire group
-    result = []
+    result: list[str] = []
     for group in modality_matches:
         if group[0] not in accepted_uids:
             continue
@@ -135,7 +135,7 @@ def _run_query_nifti(
     collection: str,
     store: IndexedDatasets,
     modality_queries: list[str],
-    rules: dict[str, Rule | list[Rule]],
+    rules: dict[str, Rule | list[Rule]] | None,
 ) -> pd.DataFrame:
     from imgnet.query.models import Rule
 

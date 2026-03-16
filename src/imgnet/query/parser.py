@@ -24,6 +24,7 @@ def parse_rule(rule: str) -> Rule:
         )
         raise RulesValidationParsingError(msg)
 
+    value: list[str] | str
     if raw_value.startswith("["):
         matches = re.findall(r"""(['"])(.*?)\1""", raw_value)
         value = [m[1] for m in matches]

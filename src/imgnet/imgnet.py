@@ -31,6 +31,7 @@ class ImgNet:
         """
 
         for collection, group in results.groupby("Collection"):
+            collection = str(collection)
             if self.store.source_config(collection).source == "tcia":
                 instance_ids = group["SeriesInstanceUID"].tolist()
             else:

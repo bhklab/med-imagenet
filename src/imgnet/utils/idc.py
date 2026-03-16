@@ -14,6 +14,9 @@ def get_idc_client() -> IDCClient:
         with _lock:
             if _state["client"] is None:
                 _state["client"] = IDCClient()
+
+    if _state["client"] is None:
+        raise RuntimeError("Failed to create IDC client")
     return _state["client"]
 
 

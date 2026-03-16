@@ -20,7 +20,7 @@ class DropboxSource(BaseModel):
     source: Literal["dropbox"] = "dropbox"
     url: str
     post_download: list[str] = Field(default_factory=lambda: ["unzip"])
-    description: str | None = Field(default="")
+    description: str = Field(default="")
 
 
 class S3Source(BaseModel):
@@ -29,7 +29,7 @@ class S3Source(BaseModel):
     bucket_name: str
     filenames: list[str] | None = None
     post_download: list[str] = Field(default_factory=lambda: ["unzip"])
-    description: str | None = Field(default="")
+    description: str = Field(default="")
 
 
 class ZenodoSource(BaseModel):
@@ -38,7 +38,7 @@ class ZenodoSource(BaseModel):
     record_id: str
     filenames: list[str] | None = None
     post_download: list[str] = Field(default_factory=lambda: ["unzip"])
-    description: str | None = Field(default="")
+    description: str = Field(default="")
 
 
 SourceConfig = Annotated[
@@ -46,4 +46,4 @@ SourceConfig = Annotated[
     Field(discriminator="source"),
 ]
 
-source_adapter = TypeAdapter(SourceConfig)
+source_adapter: TypeAdapter[SourceConfig] = TypeAdapter(SourceConfig)
