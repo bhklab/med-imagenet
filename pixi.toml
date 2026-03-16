@@ -21,10 +21,10 @@ med-imagenet = { path = ".", editable = true }
 [environments]
 docs = { features = ["docs"] }
 dev = { features = ["dev", "docs", "lint", "quality"] }
-py310 = { features = ["py310", "test"], no-default-feature = true }
-py311 = { features = ["py311", "test"], no-default-feature = true }
-py312 = { features = ["py312", "test"], no-default-feature = true }
-py313 = { features = ["py313", "test"], no-default-feature = true }
+py310 = { features = ["py310", "dev"], no-default-feature = true }
+py311 = { features = ["py311", "dev"], no-default-feature = true }
+py312 = { features = ["py312", "dev"], no-default-feature = true }
+py313 = { features = ["py313", "dev"], no-default-feature = true }
 
 ################################################################################
 # dev
