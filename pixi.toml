@@ -21,6 +21,10 @@ med-imagenet = { path = ".", editable = true }
 [environments]
 docs = { features = ["docs"] }
 dev = { features = ["dev", "docs", "lint", "quality"] }
+py310 = { features = ["py310", "test"], no-default-feature = true }
+py311 = { features = ["py311", "test"], no-default-feature = true }
+py312 = { features = ["py312", "test"], no-default-feature = true }
+py313 = { features = ["py313", "test"], no-default-feature = true }
 
 ################################################################################
 # dev
@@ -37,6 +41,19 @@ python-dotenv = ">=1.0.1,<2"
 
 [feature.dev.activation.env]
 IMGNET_LOG_LEVEL = "DEBUG"
+
+############################################## PYTHON ###############################################
+[feature.py310.dependencies]
+python = "3.10.*"
+
+[feature.py311.dependencies]
+python = "3.11.*"
+
+[feature.py312.dependencies]
+python = "3.12.*"
+
+[feature.py313.dependencies]
+python = "3.13.*"
 
 ################################################################################
 # docs
