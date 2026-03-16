@@ -20,6 +20,7 @@ def test_query_cli_from_json(runner: CliRunner, tmp_path: Path):
         cli,
         [
             "query",
+            "-o",
             str(tmp_path),
             "-i",
             "tests/test_dir/valid_query.json",
@@ -37,6 +38,7 @@ def test_query_cli_options(runner: CliRunner, tmp_path: Path):
         cli,
         [
             "query",
+            "-o",
             str(tmp_path),
             "-c",
             "4D-Lung",
@@ -91,7 +93,7 @@ def test_query_cli_process(
     expected_series,
 ):
     """Query via CLI returns expected SeriesInstanceUIDs (same scenarios as former test_query_process)."""
-    args = ["query", str(tmp_path), "-m", modalities, "-r", json.dumps(rules)]
+    args = ["query", "-o", str(tmp_path), "-m", modalities, "-r", json.dumps(rules)]
     if isinstance(collections, list):
         for c in collections:
             args.extend(["-c", c])
@@ -110,6 +112,7 @@ def test_query_cli_invalid_rule_exits_nonzero(runner: CliRunner, tmp_path: Path)
         cli,
         [
             "query",
+            "-o",
             str(tmp_path),
             "-c",
             "4D-Lung",
@@ -128,6 +131,7 @@ def test_query_cli_unknown_collection_exits_nonzero(runner: CliRunner, tmp_path:
         cli,
         [
             "query",
+            "-o",
             str(tmp_path),
             "-c",
             "Unsupported_Collection",

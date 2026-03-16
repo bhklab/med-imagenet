@@ -8,15 +8,18 @@ from imgnet.collections.store import IndexedDatasets
 from imgnet.loggers import logger
 
 @click.command(no_args_is_help=True)
-@click.argument(
-    "output_path",
+@click.option(
+    "--output_path",
+    "-o",
     type=click.Path(
         exists=False,
         file_okay=False,
         dir_okay=True,
         readable=True,
         resolve_path=True,
-    )
+    ),
+    default=None,
+    help="Path to the output directory."
 )
 @click.option(
     "--input_path",
@@ -56,7 +59,7 @@ from imgnet.loggers import logger
 )
 
 def query(
-    output_path: Path,
+    output_path: Path | None,
     input_path: Path | None,
     collections: str | list[str],
     modalities: str | list[str],
@@ -81,7 +84,11 @@ def query(
     rules: `str`
         A JSON string representation of the filter rules to apply to the query, if `input_path` is not supplied.
     """
-    output_path = Path(output_path)
+    if output_path is not None:
+        output_path = Path(output_path)
+    else:
+        output_path = Path.cwd() / "query_results"
+        logger.warning(f"No output path provided, using: {output_path}")
     output_path.mkdir(exist_ok=True)
 
     if input_path:

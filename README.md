@@ -1,31 +1,39 @@
 # Med-ImageNet: Open-source Medical Imaging Data Curation for Large-scale AI
 
-<!--intro-start-->
+Med-ImageNet is a framework for accessing and curating standardized
+oncology imaging data for AI-driven cancer research. It provides:
 
-## Project Description
+- **Querying** indexed medical imaging datasets across multiple collections
+- **Downloading** selected DICOM and NIfTI series from TCIA, S3, Dropbox, and Zenodo
+- **Standardization** via [med-imagetools](https://github.com/bhklab/med-imagetools)
 
-Med-ImageNet is a transformative framework aiming to facilitate **access** to
-**standardized** medical imaging dataset for cancer research and clinical AI applications.
+Med-ImageNet makes medical imaging data **FAIR (Findable, Accessible,
+Interoperable, and Reusable)** for machine learning applications,
+prioritizing data inclusivity by representing diverse populations
+in cancer research.
 
-## Key Information
+## Installing med-imagenet
 
-- 🖼 **Project Title**: Med-ImageNet
+```console
+pip install med-imagenet
+imgnet --help
+```
 
-- 🧬 **Objective**:  Standardize and curate oncology imaging data to
-**support AI-driven cancer research,** focusing on **auto-segmentation**,
-**treatment planning**, and **monitoring**.
+## Usage
 
-- 🌐 **Significance**: Tackles the lack of standardized healthcare imaging data,
-making data **FAIR (Findable, Accessible, Interoperable, and Reusable)**
-for machine learning applications.
+```console
+# List available collections
+imgnet collections
+```
 
-- 💻 **Innovations**: Develops MedImage-Tools for data standardization,
-providing a comprehensive, open-source dataset for cancer imaging.
+```console
+# Query datasets and download them
+imgnet query -c 4D-Lung -m CT -r '{"CT": "BodyPartExamined == LUNG"}' | imgnet download
+```
 
-- 🌍 **Equity and Inclusion**: Prioritizes data inclusivity by
-representing diverse populations in cancer research.
 
-- 🤝 **Collaboration**: Engages with the AI and medical communities to
-foster collaboration and innovation in cancer research.
+## Architecture
 
-<!--intro-end-->
+![Architecture Diagram](docs/images/architecture.png)
+
+
