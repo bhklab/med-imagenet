@@ -1,20 +1,23 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import TYPE_CHECKING
+
 import pandas as pd
 from imgtools.dicom import Interlacer
-from typing import TYPE_CHECKING
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from imgnet.collections.store import IndexedDatasets
 from imgnet.collections.source import FileType
-from imgnet.query.models import CollectionsValidationError
 from imgnet.loggers import logger
+from imgnet.query.models import CollectionsValidationError
 
 if TYPE_CHECKING:
-    from imgnet.query.models import ValidQuery, Rule
+    from imgnet.collections.store import IndexedDatasets
+    from imgnet.query.models import Rule, ValidQuery
 
 
-def run_query(valid_query: "ValidQuery", store: IndexedDatasets) -> pd.DataFrame:
+def run_query(
+    valid_query: "ValidQuery", store: IndexedDatasets
+) -> pd.DataFrame:
     """Execute a `ValidQuery` against the indexed datasets store."""
 
     supported = store.collections
@@ -29,7 +32,8 @@ def run_query(valid_query: "ValidQuery", store: IndexedDatasets) -> pd.DataFrame
         collections = [collections]
     for collection in collections:
         if collection not in supported:
-            raise CollectionsValidationError(f"Collection {collection} not found.")
+            msg = f"Collection {collection} not found."
+            raise CollectionsValidationError(msg)
 
     if isinstance(modality_queries, str):
         modality_queries = [modality_queries]
@@ -41,7 +45,8 @@ def run_query(valid_query: "ValidQuery", store: IndexedDatasets) -> pd.DataFrame
         elif file_type == FileType.NIFTI:
             return _run_query_nifti(collection, store, modality_queries, rules)
         else:
-            raise ValueError(f"Unsupported file type for collection {collection}: {file_type}")
+            msg = f"Unsupported file type for collection {collection}: {file_type}"
+            raise ValueError(msg)
 
     logger.info("Running query...")
 
@@ -51,20 +56,20 @@ def run_query(valid_query: "ValidQuery", store: IndexedDatasets) -> pd.DataFrame
         matches = []
         with ThreadPoolExecutor() as executor:
             futures = {
-                executor.submit(_query_one, col): col
-                for col in collections
+                executor.submit(_query_one, col): col for col in collections
             }
             for future in as_completed(futures):
                 matches.append(future.result())
 
     return pd.concat(matches, ignore_index=True)
 
+
 def _run_query_dicom(
     collection: str,
     store: IndexedDatasets,
     modality_queries: list[str],
     rules: dict[str, Rule | list[Rule]],
-):
+) -> pd.DataFrame:
     from imgnet.query.models import Rule
 
     index_df = store.index(collection)
@@ -80,7 +85,8 @@ def _run_query_dicom(
         else:
             query_result = interlacer.query(query)
         modality_matches += [
-            [node.SeriesInstanceUID for node in group] for group in query_result
+            [node.SeriesInstanceUID for node in group]
+            for group in query_result
         ]
 
     if not modality_matches:
@@ -100,13 +106,16 @@ def _run_query_dicom(
     accepted = pd.Series(True, index=meta_df.index)
     if rules and "Modality" in meta_df.columns:
         for modality, modality_rules in rules.items():
-            if isinstance(modality_rules, Rule):
-                modality_rules = [modality_rules]
+            rules_list = (
+                [modality_rules]
+                if isinstance(modality_rules, Rule)
+                else modality_rules
+            )
             is_mod = meta_df["Modality"] == modality
             rule_mask = is_mod.copy()
-            for rule in modality_rules:
+            for rule in rules_list:
                 rule_mask &= rule.mask(meta_df)
-            accepted &= (~is_mod | rule_mask)
+            accepted &= ~is_mod | rule_mask
 
     accepted_uids = set(meta_df.index[accepted])
 
@@ -121,12 +130,13 @@ def _run_query_dicom(
     index_df["Collection"] = collection
     return index_df
 
+
 def _run_query_nifti(
     collection: str,
     store: IndexedDatasets,
     modality_queries: list[str],
     rules: dict[str, Rule | list[Rule]],
-):
+) -> pd.DataFrame:
     from imgnet.query.models import Rule
 
     index_df = store.index(collection)
@@ -147,11 +157,14 @@ def _run_query_nifti(
     # Vectorized rule evaluation via Rule.mask()
     if rules:
         for modality, modality_rules in rules.items():
-            if isinstance(modality_rules, Rule):
-                modality_rules = [modality_rules]
+            rules_list = (
+                [modality_rules]
+                if isinstance(modality_rules, Rule)
+                else modality_rules
+            )
             is_mod = filtered["Modality"] == modality
             rule_mask = is_mod.copy()
-            for rule in modality_rules:
+            for rule in rules_list:
                 rule_mask &= rule.mask(filtered)
             filtered = filtered[~is_mod | rule_mask]
 

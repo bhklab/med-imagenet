@@ -119,8 +119,7 @@ class LoggingManager:
             from datetime import datetime
 
             timestamped_logfile = (
-                LOG_DIR_NAME
-                / f"imgnet_{datetime.now():%Y-%m-%d_%H-%M-%S}.log"
+                LOG_DIR_NAME / f"imgnet_{datetime.now():%Y-%m-%d_%H-%M-%S}.log"
             )
             # Ensure the log directory exists
             LOG_DIR_NAME.mkdir(parents=True, exist_ok=True)

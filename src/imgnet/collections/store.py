@@ -1,11 +1,11 @@
 import functools
 from pathlib import Path
 
+import orjson
 import pandas as pd
-from rich import print
+from rich import print as rprint
 from rich.table import Table
 from tqdm import tqdm
-import orjson
 
 from imgnet.collections.source import (
     FileType,
@@ -13,9 +13,12 @@ from imgnet.collections.source import (
     TCIASource,
     source_adapter,
 )
-from imgnet.download.utils import _fetch_collection_size_idc
+from imgnet.collections.utils import (
+    _default_indexed_datasets_path,
+    _fetch_collection_description_tcia,
+)
 from imgnet.download.dispatcher import get_collection_download_size_bytes
-from imgnet.collections.utils import _fetch_collection_description_tcia, _default_indexed_datasets_path
+from imgnet.download.utils import _fetch_collection_size_idc
 from imgnet.loggers import logger, tqdm_logging_redirect
 
 
@@ -33,7 +36,9 @@ class IndexedDatasets:
 
     # ---- core data access ----
 
-    def __init__(self, path: Path | str | None = None, force_download: bool = False) -> None:
+    def __init__(
+        self, path: Path | str | None = None, force_download: bool = False
+    ) -> None:
         if path is None:
             path = _default_indexed_datasets_path()
 
@@ -41,12 +46,17 @@ class IndexedDatasets:
         logger.info(f"Indexed datasets path: {path.resolve()}")
 
         if not path.exists() or force_download:
-            from huggingface_hub import snapshot_download, list_repo_commits
-            from huggingface_hub.utils import disable_progress_bars, enable_progress_bars
+            from huggingface_hub import list_repo_commits, snapshot_download
+            from huggingface_hub.utils import (
+                disable_progress_bars,
+                enable_progress_bars,
+            )
             from tqdm.auto import tqdm as _tqdm
 
             repo_id = "BruhJosh/med-image-index"
-            latest_commit = list_repo_commits(repo_id=repo_id, repo_type="dataset")[0].title
+            latest_commit = list_repo_commits(
+                repo_id=repo_id, repo_type="dataset"
+            )[0].title
             logger.warning(
                 "Indexed datasets not found at %s. "
                 "Downloading latest release from Hugging Face. Latest commit: %s",
@@ -92,9 +102,15 @@ class IndexedDatasets:
     def get_collection(self, name: str) -> "Collection":
         """Return a cached Collection for the given name. Validates that the collection exists."""
         if name not in self.collections:
-            raise ValueError(f"Unknown collection: {name!r}. Known: {self.collections}")
+            error_message = (
+                f"Unknown collection: {name!r}. Known: {self.collections}"
+            )
+            logger.error(error_message)
+            raise ValueError(error_message)
         if name not in self._collection_cache:
-            self._collection_cache[name] = Collection(name=name, path=self.imgtools_path / name)
+            self._collection_cache[name] = Collection(
+                name=name, path=self.imgtools_path / name
+            )
         return self._collection_cache[name]
 
     def crawl_db(self, collection: str) -> dict:
@@ -142,15 +158,16 @@ class IndexedDatasets:
                 table.add_row("", "")  # Add a blank line between rows
             table.add_row(modality, ", ".join(tags))
             first = False
-        print(table)
-
+        rprint(table)
 
     # ---- summary / display ----
 
     def summary(self, update: bool = False) -> dict:
         """Parsed ``collections_summary.json``, or ``None`` if it doesn't exist."""
         if not self.summary_path.exists() or update:
-            logger.info("Collections summary not found or update is True. Building new summary.")
+            logger.info(
+                "Collections summary not found or update is True. Building new summary."
+            )
             collection_db = self._build_collection_db()
             with self.summary_path.open("wb") as f:
                 f.write(orjson.dumps(collection_db))
@@ -161,9 +178,15 @@ class IndexedDatasets:
     def _build_collection_db(self) -> dict:
         collection_db = {}
         with tqdm_logging_redirect():
-            for collection in tqdm(self.collections, desc="Building collections summary", total=len(self.collections)):
+            for collection in tqdm(
+                self.collections,
+                desc="Building collections summary",
+                total=len(self.collections),
+            ):
                 logger.info("Building collection summary for %s.", collection)
-                collection_db[collection] = self.get_collection(collection).build_summary_entry()
+                collection_db[collection] = self.get_collection(
+                    collection
+                ).build_summary_entry()
         return collection_db
 
     def display_summary(self, update: bool = False) -> None:
@@ -188,12 +211,11 @@ class IndexedDatasets:
                 f"{info['Source']}",
             )
 
-        print(table)
+        rprint(table)
 
 
 class Collection:
-
-    def __init__(self, name, path: Path):
+    def __init__(self, name: str, path: Path) -> None:
         self.name = name
         self.path = path
         self.indexed_datasets_path = path.parent.parent
@@ -206,10 +228,14 @@ class Collection:
     def crawl_db(self) -> dict:
         db_path = self.path / "crawl_db.json"
         if not db_path.exists():
-            logger.warning(f"Crawl db not found for collection {self.name}. Returning empty dictionary.")
+            logger.warning(
+                f"Crawl db not found for collection {self.name}. Returning empty dictionary."
+            )
             return {}
         if self.file_type != FileType.DICOM:
-            logger.warning(f"Crawl db not supported for collection {self.name} of type {self.file_type}. Returning empty dictionary.")
+            logger.warning(
+                f"Crawl db not supported for collection {self.name} of type {self.file_type}. Returning empty dictionary."
+            )
             return {}
         return orjson.loads(db_path.read_bytes())
 
@@ -219,7 +245,9 @@ class Collection:
         config_path = self.path / "source.json"
         if not config_path.exists():
             return TCIASource()
-        return source_adapter.validate_python(orjson.loads(config_path.read_bytes()))
+        return source_adapter.validate_python(
+            orjson.loads(config_path.read_bytes())
+        )
 
     @property
     def file_type(self) -> FileType:
@@ -227,7 +255,11 @@ class Collection:
 
     @functools.cached_property
     def summary(self) -> dict:
-        return orjson.loads((self.indexed_datasets_path / "collections_summary.json").read_bytes())[self.name]
+        return orjson.loads(
+            (
+                self.indexed_datasets_path / "collections_summary.json"
+            ).read_bytes()
+        )[self.name]
 
     @functools.cached_property
     def collection_size(self) -> float:
@@ -236,7 +268,9 @@ class Collection:
         try:
             if config.source == "tcia":
                 return _fetch_collection_size_idc(self.name)
-            return round(float(get_collection_download_size_bytes(config) / 1e9), 2)
+            return round(
+                float(get_collection_download_size_bytes(config) / 1e9), 2
+            )
         except Exception as e:
             logger.error(f"Error getting size for collection {self.name}: {e}")
             return 0.0
@@ -250,7 +284,9 @@ class Collection:
             else:
                 return self.source_config.description
         except Exception as e:
-            logger.error(f"Error getting description for collection {self.name}: {e}")
+            logger.error(
+                f"Error getting description for collection {self.name}: {e}"
+            )
             return ""
 
     @functools.cached_property
@@ -263,9 +299,13 @@ class Collection:
 
         index = self.index
         for modality in modalities:
-            subset = index[index["Modality"] == modality].dropna(axis=1, how="all").dropna()
+            subset = (
+                index[index["Modality"] == modality]
+                .dropna(axis=1, how="all")
+                .dropna()
+            )
             supported_tags[modality].update(subset.columns.tolist())
-        
+
         if self.file_type == FileType.DICOM:
             crawl_db = self.crawl_db
             for modality in modalities:
@@ -274,7 +314,10 @@ class Collection:
                     if series["Modality"] == modality:
                         supported_tags[modality].update(list(series.keys()))
 
-        return {modality: sorted(list(tags)) for modality, tags in supported_tags.items()}
+        return {
+            modality: sorted(list(tags))
+            for modality, tags in supported_tags.items()
+        }
 
     def build_summary_entry(self) -> dict:
         """Build the summary dict for this collection (Modalities, BodyPartsExamined, Images, Size, etc.)."""
@@ -289,25 +332,28 @@ class Collection:
         if self.file_type == FileType.NIFTI:
             index = self.index
             if "Modality" in index.columns:
-                summary["Modalities"] = index["Modality"].dropna().unique().tolist()
+                summary["Modalities"] = (
+                    index["Modality"].dropna().unique().tolist()
+                )
             else:
                 summary["Modalities"] = []
             if "BodyPartExamined" in index.columns:
-                summary["BodyPartsExamined"] = index["BodyPartExamined"].dropna().unique().tolist()
+                summary["BodyPartsExamined"] = (
+                    index["BodyPartExamined"].dropna().unique().tolist()
+                )
             else:
                 summary["BodyPartsExamined"] = []
         elif self.file_type == FileType.DICOM:
             crawl_json = self.crawl_db
-            for key in crawl_json:
-                series = crawl_json[key][list(crawl_json[key].keys())[0]]
+            for _, value in crawl_json.items():
+                series = value[next(iter(value))]
                 if series.get("Modality"):
                     summary["Modalities"].add(series["Modality"])
                 if series.get("BodyPartExamined"):
-                    summary["BodyPartsExamined"].add(series["BodyPartExamined"])
-            for key in summary:
-                if isinstance(summary[key], set):
-                    summary[key] = list(summary[key])
+                    summary["BodyPartsExamined"].add(
+                        series["BodyPartExamined"]
+                    )
+            for key, value in summary.items():
+                if isinstance(value, set):
+                    summary[key] = list(value)
         return summary
-
-
-    

@@ -20,7 +20,7 @@ med-imagenet = { path = ".", editable = true }
 
 [environments]
 docs = { features = ["docs"] }
-dev = { features = ["dev", "docs", "lint"] }
+dev = { features = ["dev", "docs", "lint", "quality"] }
 
 ################################################################################
 # dev
@@ -90,6 +90,26 @@ lint.description = "Run pre-commit hooks"
 lint.cmd = "pre-commit run --all-files --hook-stage=manual"
 lint.depends-on = ["pre-commit-install"]
 
+############################################## QUALITY ###############################################
+# Quality includes linting, type checking, and formatting
+[feature.quality.dependencies]
+ruff = ">=0.9.4"
+mypy = ">=1.13.0,<2"
+types-tqdm = ">=4.66.0.20240417,<5"
+pandas-stubs = ">=2.2.3.241126,<3"
+types-pyyaml = ">=6.0.12.20250402,<7"
 
+[feature.quality.pypi-dependencies]
+pydoctest = ">=0.2.1, <0.3"
+
+[feature.quality.tasks]
+ruff-check.cmd = ["ruff", "check", "src"]
+ruff-check.description = "Run ruff check"
+ruff-format.cmd = ["ruff", "format", "src"]
+ruff-format.description = "Run ruff format, run check first"
+type-check.cmd = ["mypy", "src"]
+type-check.description = "Run mypy type check."
+qc.depends-on = ["ruff-format", "ruff-check", "type-check"]
+qc.description = "Quality check: ruff & mypy"
 
 

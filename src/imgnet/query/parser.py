@@ -5,7 +5,7 @@ from imgnet.query.models import Rule, RulesValidationParsingError
 SUPPORTED_COMPARISONS = {"=", "==", "<", ">", "<=", ">=", "!="}
 
 
-def parse_rule(rule: str):
+def parse_rule(rule: str) -> Rule:
     """Parse a rule string into a `Rule` instance.
 
     Accepted syntax:
@@ -18,10 +18,11 @@ def parse_rule(rule: str):
 
     tag, comparison, raw_value = rule_parts
     if comparison not in SUPPORTED_COMPARISONS:
-        raise RulesValidationParsingError(
+        msg = (
             f"{comparison} is not a supported comparison type."
             f"\nSupported comparison types: {SUPPORTED_COMPARISONS}"
         )
+        raise RulesValidationParsingError(msg)
 
     if raw_value.startswith("["):
         matches = re.findall(r"""(['"])(.*?)\1""", raw_value)

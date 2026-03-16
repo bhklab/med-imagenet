@@ -31,6 +31,7 @@ class S3Source(BaseModel):
     post_download: list[str] = Field(default_factory=lambda: ["unzip"])
     description: str | None = Field(default="")
 
+
 class ZenodoSource(BaseModel):
     file_type: FileType
     source: Literal["zenodo"] = "zenodo"
@@ -38,6 +39,7 @@ class ZenodoSource(BaseModel):
     filenames: list[str] | None = None
     post_download: list[str] = Field(default_factory=lambda: ["unzip"])
     description: str | None = Field(default="")
+
 
 SourceConfig = Annotated[
     TCIASource | DropboxSource | S3Source | ZenodoSource,

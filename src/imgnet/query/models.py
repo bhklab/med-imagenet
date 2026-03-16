@@ -1,16 +1,15 @@
+import base64
 import operator
 import re
-from typing import Any
-import msgpack
-import base64
 import zlib
+from typing import Any
 
+import msgpack
 import pandas as pd
 from pydantic import BaseModel, Field, field_validator
 
 from imgnet.collections.store import IndexedDatasets
 from imgnet.loggers import logger
-
 
 NUMERIC_OPS = {
     ">": operator.gt,
@@ -63,15 +62,19 @@ class Rule(BaseModel):
         ),
     )
 
-    def evaluate(self, dicom_element: dict) -> bool:
+    def evaluate(self, dicom_element: dict) -> bool:  # noqa: PLR0911 PLR0912
         """Evaluate whether a DICOM metadata dict is accepted by this rule."""
         tag_value = dicom_element.get(self.tag)
         if tag_value is None:
             return False
 
         if isinstance(tag_value, str):
-            if tag_value.strip().startswith("[") and tag_value.strip().endswith("]"):
-                matches = re.findall(r"""(['"])(.*?)\1|([^'",\s\[\]]+)""", tag_value)
+            if tag_value.strip().startswith(
+                "["
+            ) and tag_value.strip().endswith("]"):
+                matches = re.findall(
+                    r"""(['"])(.*?)\1|([^'",\s\[\]]+)""", tag_value
+                )
                 tag_value = [m[1] if m[1] else m[2] for m in matches]
             else:
                 tag_value = [tag_value.strip()]
@@ -100,9 +103,8 @@ class Rule(BaseModel):
             case ">" | "<" | ">=" | "<=":
                 op_fn = NUMERIC_OPS[self.comparison]
                 if isinstance(self.value, list):
-                    raise InvalidComparisonError(
-                        f"{self.comparison} comparison only compatible with numeric arguments, not list."
-                    )
+                    msg = f"{self.comparison} comparison only compatible with numeric arguments, not list."
+                    raise InvalidComparisonError(msg)
                 for element in tag_value:
                     if element == "" or element is None:
                         return False
@@ -110,10 +112,11 @@ class Rule(BaseModel):
                         if not op_fn(float(element), float(self.value)):
                             return False
                     except ValueError as exc:
-                        raise RuleError(
+                        msg = (
                             f"'{self.comparison}' comparisons only support numeric values."
                             f"\nInput: {self.tag}: {tag_value}, {self.comparison} {self.value}"
-                        ) from exc
+                        )
+                        raise RuleError(msg) from exc
                 return True
 
         return False
@@ -131,22 +134,27 @@ class Rule(BaseModel):
 
         match self.comparison:
             case "==" | "=":
-                patterns = [self.value] if isinstance(self.value, str) else self.value
+                patterns = (
+                    [self.value] if isinstance(self.value, str) else self.value
+                )
                 combined = "|".join(f"(?:{p})" for p in patterns)
                 return col.str.match(combined, na=False)
 
             case "!=":
-                patterns = [self.value] if isinstance(self.value, str) else self.value
+                patterns = (
+                    [self.value] if isinstance(self.value, str) else self.value
+                )
                 combined = "|".join(f"(?:{p})" for p in patterns)
                 return ~col.str.match(combined, na=False)
 
             case ">" | "<" | ">=" | "<=":
                 if isinstance(self.value, list):
-                    raise InvalidComparisonError(
-                        f"{self.comparison} comparison only compatible with numeric arguments, not list."
-                    )
+                    msg = f"{self.comparison} comparison only compatible with numeric arguments, not list."
+                    raise InvalidComparisonError(msg)
                 op_fn = NUMERIC_OPS[self.comparison]
-                return op_fn(pd.to_numeric(col, errors="coerce"), float(self.value)).fillna(False)
+                return op_fn(
+                    pd.to_numeric(col, errors="coerce"), float(self.value)
+                ).fillna(False)
 
         return pd.Series(False, index=df.index)
 
@@ -176,20 +184,22 @@ class ValidQuery(BaseModel):
     )
 
     @field_validator("rules", mode="before")
-    def validate_rules(cls, value: Any) -> dict[str, Rule | list[Rule]] | None:
+    def validate_rules(
+        self, value: Any
+    ) -> dict[str, Rule | list[Rule]] | None:  # noqa: PLR0912 ANN401
         if value is None:
             return None
         if not isinstance(value, dict):
-            raise RulesValidationError(f"rules must be a dict, got {type(value)}.")
+            msg = f"rules must be a dict, got {type(value)}."
+            raise RulesValidationError(msg)
 
         from imgnet.query.parser import parse_rule
 
         result: dict[str, Rule | list[Rule]] = {}
         for key, item in value.items():
             if not isinstance(key, str):
-                raise RulesValidationError(
-                    f"rules keys must be str, got {type(key)}."
-                )
+                msg = f"rules keys must be str, got {type(key)}."
+                raise RulesValidationError(msg)
             if isinstance(item, dict):
                 result[key] = Rule.model_validate(item)
             elif isinstance(item, str):
@@ -198,19 +208,19 @@ class ValidQuery(BaseModel):
                 result[key] = item
             elif isinstance(item, list):
                 if all(isinstance(entry, dict) for entry in item):
-                    result[key] = [Rule.model_validate(entry) for entry in item]
+                    result[key] = [
+                        Rule.model_validate(entry) for entry in item
+                    ]
                 elif all(isinstance(entry, str) for entry in item):
                     result[key] = [parse_rule(entry) for entry in item]
                 elif all(isinstance(entry, Rule) for entry in item):
                     result[key] = item
                 else:
-                    raise RulesValidationError(
-                        f"rules[{key!r}] list elements must all be str, dict, or Rule."
-                    )
+                    msg = f"rules[{key!r}] list elements must all be str, dict, or Rule."
+                    raise RulesValidationError(msg)
             else:
-                raise RulesValidationError(
-                    f"rules[{key!r}] must be str, dict, Rule, or list - got {type(item)}."
-                )
+                msg = f"rules[{key!r}] must be str, dict, Rule, or list - got {type(item)}."
+                raise RulesValidationError(msg)
         return result
 
     def to_token(self) -> str:

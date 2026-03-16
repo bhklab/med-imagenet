@@ -1,9 +1,10 @@
-import pandas as pd
-from pathlib import Path
 import os
-from platformdirs import user_data_dir
-from imgnet.utils import get_idc_client
+from pathlib import Path
 
+import pandas as pd
+from platformdirs import user_data_dir
+
+from imgnet.utils import get_idc_client
 
 _ENV_VAR = "IMGNET_INDEX_DIR"
 _APP_NAME = "med-imagenet"
@@ -29,6 +30,7 @@ def _fetch_collection_description_tcia(collection: str) -> str:
     client = get_idc_client()
     path = client.indices_overview["collections_index"]["file_path"]
     collections_df = pd.read_parquet(path)
-    description = collections_df.loc[collections_df["collection_id"] == collection, "Description"].iloc[0]
+    description = collections_df.loc[
+        collections_df["collection_id"] == collection, "Description"
+    ].iloc[0]
     return description
-
