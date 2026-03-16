@@ -1,9 +1,8 @@
+import functools
 import json
-import os
 from pathlib import Path
 
 import pandas as pd
-from platformdirs import user_data_dir
 from rich import print
 from rich.table import Table
 from tqdm import tqdm
@@ -16,25 +15,8 @@ from imgnet.collections.source import (
 )
 from imgnet.download.utils import _fetch_collection_size_idc
 from imgnet.download.dispatcher import get_collection_download_size_bytes
-from imgnet.collections.utils import _fetch_collection_description_tcia
+from imgnet.collections.utils import _fetch_collection_description_tcia, _default_indexed_datasets_path
 from imgnet.loggers import logger, tqdm_logging_redirect
-
-_ENV_VAR = "IMGNET_INDEX_DIR"
-_APP_NAME = "med-imagenet"
-_APP_AUTHOR = "bhklab"
-
-
-def default_indexed_datasets_path() -> Path:
-    """Return the default path for the ``indexed_datasets/`` directory.
-
-    Resolution order:
-    1. ``$IMGNET_INDEX_DIR/indexed_datasets`` if the env var is set.
-    2. ``<platform-data-dir>/med-imagenet/indexed_datasets`` via *platformdirs*.
-    """
-    env = os.environ.get(_ENV_VAR)
-    if env:
-        return Path(env) / "indexed_datasets"
-    return Path(user_data_dir(_APP_NAME, _APP_AUTHOR)) / "indexed_datasets"
 
 
 class IndexedDatasets:
@@ -53,7 +35,7 @@ class IndexedDatasets:
 
     def __init__(self, path: Path | str | None = None, force_download: bool = False) -> None:
         if path is None:
-            path = default_indexed_datasets_path()
+            path = _default_indexed_datasets_path()
 
         path = Path(path)
         logger.info(f"Indexed datasets path: {path.resolve()}")
@@ -106,21 +88,19 @@ class IndexedDatasets:
             if folder.is_dir()
         )
 
+    def get_collection(self, name: str) -> "Collection":
+        """Return a Collection for the given name. Validates that the collection exists."""
+        if name not in self.collections:
+            raise ValueError(f"Unknown collection: {name!r}. Known: {self.collections}")
+        return Collection(name=name, path=self.imgtools_path / name)
+
     def crawl_db(self, collection: str) -> dict:
         """Return the parsed ``crawl_db.json`` for *collection*."""
-        db_path = self.imgtools_path / collection / "crawl_db.json"
-
-        if not db_path.exists():
-            logger.warning(f"Crawl db not found for collection {collection}. Returning empty dictionary.")
-            return {}
-
-        with open(db_path, "r") as f:
-            return json.load(f)
+        return self.get_collection(collection).crawl_db
 
     def index(self, collection: str) -> pd.DataFrame:
         """Return the ``index.csv`` for *collection* as a DataFrame."""
-        csv_path = self.imgtools_path / collection / "index.csv"
-        return pd.read_csv(csv_path)
+        return self.get_collection(collection).index
 
     def source_config(self, collection: str) -> SourceConfig:
         """Return the validated ``source.json`` for *collection*.
@@ -129,38 +109,38 @@ class IndexedDatasets:
         ``source.json`` exists, keeping backwards compatibility with
         collections that predate this file.
         """
-        config_path = self.imgtools_path / collection / "source.json"
-        if not config_path.exists():
-            return TCIASource()
-        with open(config_path, "r") as f:
-            return source_adapter.validate_python(json.load(f))
+        return self.get_collection(collection).source_config
 
     def file_type(self, collection: str) -> FileType:
         """Return the ``FileType`` for *collection*."""
-        return self.source_config(collection).file_type
+        return self.get_collection(collection).file_type
 
     def collection_size(self, collection: str) -> float:
         """Return the size of *collection* in GB."""
-        config = self.source_config(collection)
-
-        try:
-            if config.source == "tcia":
-                return _fetch_collection_size_idc(collection)
-            return round(float(get_collection_download_size_bytes(config) / 1e9), 2)
-        except Exception as e:
-            logger.error(f"Error getting size for collection {collection}: {e}")
-            return 0.0
+        return self.get_collection(collection).collection_size
 
     def description(self, collection: str) -> str:
         """Return the description of *collection*."""
-        try:
-            if self.source_config(collection).source == "tcia":
-                return _fetch_collection_description_tcia(collection)
-            else:
-                return self.source_config(collection).description
-        except Exception as e:
-            logger.error(f"Error getting description for collection {collection}: {e}")
-            return ""
+        return self.get_collection(collection).description
+
+    def supported_query_tags(self, collection: str) -> dict[str, list[str]]:
+        """Return supported query tags per modality for *collection*."""
+        return self.get_collection(collection).supported_query_tags
+
+    def display_supported_query_tags(self, collection: str) -> None:
+        """Display supported query tags per modality for *collection*."""
+        supported_tags = self.supported_query_tags(collection)
+        table = Table(title=f"Supported Query Tags for {collection}")
+        table.add_column("Modality", justify="left")
+        table.add_column("Supported Query Tags", justify="left")
+        first = True
+        for modality, tags in supported_tags.items():
+            if not first:
+                table.add_row("", "")  # Add a blank line between rows
+            table.add_row(modality, ", ".join(tags))
+            first = False
+        print(table)
+
 
     # ---- summary / display ----
 
@@ -178,45 +158,10 @@ class IndexedDatasets:
 
     def _build_collection_db(self) -> dict:
         collection_db = {}
-
         with tqdm_logging_redirect():
             for collection in tqdm(self.collections, desc="Building collections summary", total=len(self.collections)):
                 logger.info("Building collection summary for %s.", collection)
-                summary = {
-                    "Modalities": set(),
-                    "BodyPartsExamined": set(),
-                    "Images": len(self.index(collection)),
-                    "Size": self.collection_size(collection),
-                    "File Type": self.file_type(collection).value.upper(),
-                    "Source": self.source_config(collection).source.upper(),
-                }
-
-                if self.file_type(collection) == FileType.NIFTI:
-                    index = self.index(collection)
-                    if "Modality" in index.columns:
-                        summary["Modalities"] = index["Modality"].dropna().unique().tolist()
-                    else:
-                        summary["Modalities"] = []
-                    if "BodyPartExamined" in index.columns:
-                        summary["BodyPartsExamined"] = index["BodyPartExamined"].dropna().unique().tolist()
-                    else:
-                        summary["BodyPartsExamined"] = []
-
-                elif self.file_type(collection) == FileType.DICOM:
-
-                    crawl_json = self.crawl_db(collection)
-                    for key in crawl_json:
-                        series = crawl_json[key][list(crawl_json[key].keys())[0]]
-                        if series["Modality"]:
-                            summary["Modalities"].add(series["Modality"])
-                        if series["BodyPartExamined"]:
-                            summary["BodyPartsExamined"].add(series["BodyPartExamined"])
-                    for key in summary:
-                        if isinstance(summary[key], set):
-                            summary[key] = list(summary[key])
-                    
-                collection_db[collection] = summary
-
+                collection_db[collection] = self.get_collection(collection).build_summary_entry()
         return collection_db
 
     def display_summary(self, update: bool = False) -> None:
@@ -243,8 +188,127 @@ class IndexedDatasets:
 
         print(table)
 
-if __name__ == "__main__":
-    store = IndexedDatasets("/home/joshua-siraj/Documents/BHKLAB/med-image-index/indexed_datasets")
-    store.display_summary(update=True)
+
+class Collection:
+
+    def __init__(self, name, path: Path):
+        self.name = name
+        self.path = path
+        self.indexed_datasets_path = path.parent.parent
+
+    @functools.cached_property
+    def index(self) -> pd.DataFrame:
+        return pd.read_csv(self.path / "index.csv")
+
+    @functools.cached_property
+    def crawl_db(self) -> dict:
+        db_path = self.path / "crawl_db.json"
+        if not db_path.exists():
+            logger.warning(f"Crawl db not found for collection {self.name}. Returning empty dictionary.")
+            return {}
+        if self.file_type != FileType.DICOM:
+            logger.warning(f"Crawl db not supported for collection {self.name} of type {self.file_type}. Returning empty dictionary.")
+            return {}
+        with open(db_path, "r") as f:
+            return json.load(f)
+
+    @functools.cached_property
+    def source_config(self) -> SourceConfig:
+        """Return the validated source config. Falls back to TCIASource() when source.json is missing."""
+        config_path = self.path / "source.json"
+        if not config_path.exists():
+            return TCIASource()
+        with open(config_path, "r") as f:
+            return source_adapter.validate_python(json.load(f))
+
+    @property
+    def file_type(self) -> FileType:
+        return self.source_config.file_type
+
+    @functools.cached_property
+    def summary(self) -> dict:
+        with open(self.indexed_datasets_path / "collections_summary.json", "r") as f:
+            return json.load(f)[self.name]
+
+    @functools.cached_property
+    def collection_size(self) -> float:
+        config = self.source_config
+
+        try:
+            if config.source == "tcia":
+                return _fetch_collection_size_idc(self.name)
+            return round(float(get_collection_download_size_bytes(config) / 1e9), 2)
+        except Exception as e:
+            logger.error(f"Error getting size for collection {self.name}: {e}")
+            return 0.0
+
+    @functools.cached_property
+    def description(self) -> str:
+        """Return the description of *collection*."""
+        try:
+            if self.source_config.source == "tcia":
+                return _fetch_collection_description_tcia(self.name)
+            else:
+                return self.source_config.description
+        except Exception as e:
+            logger.error(f"Error getting description for collection {self.name}: {e}")
+            return ""
+
+    @functools.cached_property
+    def supported_query_tags(self) -> dict[str, list[str]]:
+        modalities = self.summary["Modalities"]
+
+        supported_tags = dict()
+        for modality in modalities:
+            supported_tags[modality] = set()
+
+        index = self.index
+        for modality in modalities:
+            subset = index[index["Modality"] == modality].dropna(axis=1, how="all").dropna()
+            supported_tags[modality].update(subset.columns.tolist())
+        
+        if self.file_type == FileType.DICOM:
+            crawl_db = self.crawl_db
+            for modality in modalities:
+                for key in crawl_db:
+                    series = crawl_db[key][list(crawl_db[key].keys())[0]]
+                    if series["Modality"] == modality:
+                        supported_tags[modality].update(list(series.keys()))
+
+        return {modality: sorted(list(tags)) for modality, tags in supported_tags.items()}
+
+    def build_summary_entry(self) -> dict:
+        """Build the summary dict for this collection (Modalities, BodyPartsExamined, Images, Size, etc.)."""
+        summary = {
+            "Modalities": set(),
+            "BodyPartsExamined": set(),
+            "Images": len(self.index),
+            "Size": self.collection_size,
+            "File Type": self.file_type.value.upper(),
+            "Source": self.source_config.source.upper(),
+        }
+        if self.file_type == FileType.NIFTI:
+            index = self.index
+            if "Modality" in index.columns:
+                summary["Modalities"] = index["Modality"].dropna().unique().tolist()
+            else:
+                summary["Modalities"] = []
+            if "BodyPartExamined" in index.columns:
+                summary["BodyPartsExamined"] = index["BodyPartExamined"].dropna().unique().tolist()
+            else:
+                summary["BodyPartsExamined"] = []
+        elif self.file_type == FileType.DICOM:
+            crawl_json = self.crawl_db
+            for key in crawl_json:
+                series = crawl_json[key][list(crawl_json[key].keys())[0]]
+                if series.get("Modality"):
+                    summary["Modalities"].add(series["Modality"])
+                if series.get("BodyPartExamined"):
+                    summary["BodyPartsExamined"].add(series["BodyPartExamined"])
+            for key in summary:
+                if isinstance(summary[key], set):
+                    summary[key] = list(summary[key])
+        return summary
+
 
     
