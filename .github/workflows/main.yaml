@@ -67,7 +67,7 @@ jobs:
           pixi-version: v0.41.3
           cache: true
           locked: false
-      - name: Run pytest
+      - name: Run tests
         run: |
-          pixi run -e ${{ matrix.env }} pytest -s --no-cov --numprocesses=auto
+          pixi run -e ${{ matrix.env }} test
 
