@@ -5,11 +5,11 @@ from rich.live import Live
 from idc_index import IDCClient
 from imgnet.collections.store import IndexedDatasets
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def client():
     return IDCClient()
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def store():
     return IndexedDatasets()
 
