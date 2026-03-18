@@ -2,6 +2,7 @@ import click
 from pathlib import Path
 import pandas as pd
 import sys
+from datetime import datetime
 
 from imgnet.imgnet import ImgNet
 from imgnet.collections.store import IndexedDatasets
@@ -15,7 +16,7 @@ from imgnet.query import ValidQuery
     required=False,
 )
 @click.option(
-    "--output_path",
+    "--output-dir",
     "-o",
     type=click.Path(
         exists=False,
@@ -33,13 +34,19 @@ from imgnet.query import ValidQuery
     is_flag=True,
     help="Process all dicom files in the output directory using imgtools."
 )
+@click.option(
+    "--delete-srcdata",
+    is_flag=True,
+    help="Delete the source data after processing."
+)
 
 @click.pass_context
 def download(
     ctx: click.Context,
     manifest_or_token: str | None,
-    output_path: Path | None,
+    output_dir: Path | None,
     process: bool,
+    delete_srcdata: bool,
 ) -> None:
     """Download instances from a manifest file or a query token.
 
@@ -58,33 +65,44 @@ def download(
     if path.is_file():
         with open(path, "r") as f:
             manifest = pd.read_csv(f)
-        default_output = path.parent / "downloaded_data"
         logger.info(f"Downloading from manifest file: {path}")
     else:
         valid_query = ValidQuery.from_token(manifest_or_token)
         manifest = valid_query.process(store)
-        default_output = Path.cwd() / "downloaded_data"
         logger.info(f"Downloading from query token: {manifest_or_token}")
 
-    if output_path is not None:
-        output_path = Path(output_path)
+    if output_dir is not None:
+        output_dir = Path(output_dir)
     else:
-        logger.warning("No output path provided, using: %s", default_output)
-        output_path = default_output
+        output_dir = Path.cwd() / f"imgnet_output_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        logger.warning("No output path provided, using: %s", output_dir)
 
-    if process:
-        output_path = output_path / "raw"
-    output_path.mkdir(exist_ok=True, parents=True)
+    srcdata_path = output_dir / "srcdata"
+    srcdata_path.mkdir(exist_ok=True, parents=True)
 
-    imgnet = ImgNet(output_path, store=store)
+    imgnet = ImgNet(srcdata_path, store=store)
     imgnet.download(manifest)
 
     if process:
-        logger.info("Processing all dicom files in the output directory using imgtools.")
         from imgtools.autopipeline import Autopipeline
+        from imgnet.collections.source import FileType
+        import shutil
+        procdata_path = output_dir / "procdata"
+        procdata_path.mkdir(exist_ok=True, parents=True)
 
-        pipeline = Autopipeline(
-            input_directory=output_path,
-            output_directory=output_path.parent / "processed_dicoms",
-        )
-        pipeline.run()
+        for collection in manifest["Collection"].unique():
+            if store.file_type(collection) == FileType.DICOM:
+                logger.info(f"Processing DICOM files in collection using imgtools: {collection}")
+                pipeline = Autopipeline(
+                    input_directory=srcdata_path / collection,
+                    output_directory=procdata_path / collection,
+                )
+                pipeline.run()
+
+                if delete_srcdata:
+                    logger.warning(f"Flag --delete-srcdata set. Deleting source data for collection: {collection}")
+                    if (srcdata_path / collection).exists():
+                        shutil.rmtree(srcdata_path / collection)
+                    if (srcdata_path / ".imgtools").exists():
+                        shutil.rmtree(srcdata_path / ".imgtools")
+            

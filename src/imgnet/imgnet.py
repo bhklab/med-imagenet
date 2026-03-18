@@ -37,7 +37,7 @@ class ImgNet:
             else:
                 instance_ids = group["filepath"].tolist()
             logger.info(
-                f"Downloading {len(instance_ids)} instances from {collection}"
+                f"Downloading {collection} {len(instance_ids)} instances from {self.store.source_config(collection).source.capitalize()}"
             )
             download_collection(
                 output_path=self.output_path / collection,
