@@ -75,6 +75,7 @@ class IndexedDatasets:
                         local_dir=download_dir,
                         ignore_patterns=[".git*"],
                         tqdm_class=_tqdm,
+                        force_download=True,
                     )
             finally:
                 enable_progress_bars()
