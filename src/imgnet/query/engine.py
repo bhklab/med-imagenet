@@ -22,18 +22,40 @@ def run_query(
 
     supported = store.collections
 
+    requested_file_type = valid_query.file_type
+
     collections = valid_query.collections
     modality_queries = valid_query.modalities
     rules = valid_query.rules
 
     if collections == "all":
-        collections = supported
+        if requested_file_type in (None, "all"):
+            collections = supported
+        else:
+            collections = [
+                c
+                for c in supported
+                if store.file_type(c) == requested_file_type
+            ]
     if isinstance(collections, str):
         collections = [collections]
     for collection in collections:
         if collection not in supported:
             msg = f"Collection {collection} not found."
             raise CollectionsValidationError(msg)
+        if requested_file_type not in (None, "all"):
+            expected = (
+                requested_file_type.value
+                if isinstance(requested_file_type, FileType)
+                else requested_file_type
+            )
+            actual = store.file_type(collection).value
+            if store.file_type(collection) != requested_file_type:
+                msg = (
+                    f"Collection {collection!r} is of type {actual}, "
+                    f"but query requested {expected}."
+                )
+                raise CollectionsValidationError(msg)
 
     if isinstance(modality_queries, str):
         modality_queries = [modality_queries]
