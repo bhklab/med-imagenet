@@ -2,13 +2,14 @@ import base64
 import operator
 import re
 import zlib
-from typing import Any
+from typing import Any, Literal
 
 import msgpack
 import pandas as pd
 from pydantic import BaseModel, Field, field_validator
 
 from imgnet.collections.store import IndexedDatasets
+from imgnet.collections.source import FileType
 from imgnet.loggers import logger
 
 NUMERIC_OPS = {
@@ -181,6 +182,11 @@ class ValidQuery(BaseModel):
                 "MR": ["ImageType=='PRIMARY'", "PixelPaddingValue == 1"],
             }
         ],
+    )
+    file_type: FileType | Literal["all"] = Field(
+        description="The file type to query",
+        default="all",
+        examples=[FileType.DICOM.value, FileType.NIFTI.value],
     )
 
     @field_validator("rules", mode="before")
