@@ -40,7 +40,7 @@ def test_download_from_manifest_file(runner: CliRunner, tmp_path: Path):
     out_dir = tmp_path / "downloaded"
     result = runner.invoke(
         cli,
-        ["download", str(manifest_path), "--output_path", str(out_dir)],
+        ["download", str(manifest_path), "--output-dir", str(out_dir)],
     )
     assert result.exit_code == 0
     assert out_dir.exists()
@@ -57,7 +57,7 @@ def test_download_from_token(runner: CliRunner, tmp_path: Path):
     out_dir = tmp_path / "from_token"
     result = runner.invoke(
         cli,
-        ["download", token, "--output_path", str(out_dir)],
+        ["download", token, "--output-dir", str(out_dir)],
     )
     assert result.exit_code == 0
     assert out_dir.exists()
@@ -74,8 +74,8 @@ def test_download_with_process_flag_accepts(runner: CliRunner, tmp_path: Path):
     out_dir = tmp_path / "processed"
     result = runner.invoke(
         cli,
-        ["download", token, "--output_path", str(out_dir), "--process"],
+        ["download", token, "--output-dir", str(out_dir), "--process"],
     )
     assert result.exit_code == 0
-    assert (out_dir / "raw").exists() 
-    assert (out_dir / "processed_dicoms").exists()
+    assert (out_dir / "srcdata").exists()
+    assert (out_dir / "procdata").exists()
