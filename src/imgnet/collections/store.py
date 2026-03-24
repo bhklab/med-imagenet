@@ -1,5 +1,6 @@
 import functools
 from pathlib import Path
+import shutil
 
 import orjson
 import pandas as pd
@@ -58,11 +59,16 @@ class IndexedDatasets:
                 repo_id=repo_id, repo_type="dataset"
             )[0].title
             logger.warning(
-                "Indexed datasets not found at %s. "
+                "Indexed datasets not found at %s or force_download is True. "
                 "Downloading latest release from Hugging Face. Latest commit: %s",
                 path.resolve(),
                 latest_commit,
             )
+
+            if path.exists():
+                shutil.rmtree(path)
+                logger.debug("Deleted existing indexed datasets directory at %s.", path.resolve())
+            
             download_dir = path.parent
             download_dir.mkdir(parents=True, exist_ok=True)
 
@@ -91,7 +97,7 @@ class IndexedDatasets:
     def summary_path(self) -> Path:
         return self.path / "collections_summary.json"
 
-    @functools.cached_property
+    @property
     def collections(self) -> list[str]:
         """Collection names derived from subdirectories of ``.imgtools/``."""
         return sorted(
