@@ -1,10 +1,15 @@
 import shutil
 from pathlib import Path
+from typing import Any
 
 import requests
 import s3fs
 from tqdm import tqdm
+from huggingface_hub.utils import disable_progress_bars, enable_progress_bars
+from huggingface_hub import snapshot_download
+from tqdm.auto import tqdm as _tqdm
 
+from imgnet.loggers import tqdm_logging_redirect
 from imgnet.loggers import logger
 from imgnet.utils import get_idc_client
 
@@ -118,6 +123,26 @@ def download_from_zenodo(
         downloaded.append(out_file)
     return downloaded
 
+
+def download_from_huggingface(
+    repo_id: str,
+    download_dir: Path,
+    kwargs: dict[str, Any],
+) -> float | None:
+    """Download from Hugging Face."""
+    
+    disable_progress_bars()
+    try:
+        with tqdm_logging_redirect():
+            snapshot_download(
+                repo_id=repo_id,
+                local_dir=download_dir,
+                tqdm_class=_tqdm,
+                **kwargs,
+            )
+    finally:
+        enable_progress_bars()
+        
 
 def _fetch_collection_size_idc(collection_id: str) -> float:
     """Fetch the size of a collection from the IDC index in GB."""

@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Callable, cast
 
 from tqdm import tqdm
+from huggingface_hub import snapshot_download
 
 from imgnet.collections.source import (
     DropboxSource,
@@ -9,12 +10,14 @@ from imgnet.collections.source import (
     SourceConfig,
     TCIASource,
     ZenodoSource,
+    HuggingFaceSource,
 )
 from imgnet.download.utils import (
     _post_unzip,
     download_file_from_s3,
     download_from_dropbox,
     download_from_zenodo,
+    download_from_huggingface,
     list_s3_bucket_keys,
 )
 from imgnet.loggers import logger, tqdm_logging_redirect
@@ -106,6 +109,31 @@ def _download_zenodo(
     return None
 
 
+def _download_huggingface(
+    config: HuggingFaceSource, output_path: Path, dry_run: bool = False
+) -> float | None:
+    """If dry_run=True, return total size in bytes; otherwise None."""
+    if dry_run:
+        from huggingface_hub import HfApi
+        api = HfApi()
+        info = api.dataset_info(config.repo_id)
+        
+        if hasattr(info, "usedStorage"):
+            return float(info.usedStorage)
+        else:
+            return 0.0
+
+    download_from_huggingface(
+        repo_id=config.repo_id,
+        download_dir=output_path,
+        kwargs={
+            "repo_type": "dataset",
+        },
+    )
+
+    return None
+
+
 def get_collection_download_size_bytes(config: SourceConfig) -> float:
     """Return total download size in bytes for non-TCIA sources; 0 for TCIA (use IDC for size)."""
     dummy_path = Path()
@@ -193,6 +221,8 @@ def download_collection(
             _download_s3(config, output_path, dry_run=False)
         case ZenodoSource():
             _download_zenodo(config, output_path, dry_run=False)
+        case HuggingFaceSource():
+            _download_huggingface(config, output_path, dry_run=False)
 
     if config.post_download:
         _run_post_steps(config.post_download, output_path)

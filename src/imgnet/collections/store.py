@@ -20,7 +20,7 @@ from imgnet.collections.utils import (
 )
 from imgnet.download.dispatcher import get_collection_download_size_bytes
 from imgnet.download.utils import _fetch_collection_size_idc
-from imgnet.loggers import logger, tqdm_logging_redirect
+from imgnet.loggers import logger
 
 
 class IndexedDatasets:
@@ -47,13 +47,9 @@ class IndexedDatasets:
         logger.info(f"Indexed datasets path: {path.resolve()}")
 
         if not path.exists() or force_download:
-            from huggingface_hub import list_repo_commits, snapshot_download
-            from huggingface_hub.utils import (
-                disable_progress_bars,
-                enable_progress_bars,
-            )
-            from tqdm.auto import tqdm as _tqdm
-
+            from huggingface_hub import list_repo_commits
+            from imgnet.download.utils import download_from_huggingface
+            
             repo_id = "BruhJosh/med-image-index"
             latest_commit = list_repo_commits(
                 repo_id=repo_id, repo_type="dataset"
@@ -72,19 +68,15 @@ class IndexedDatasets:
             download_dir = path.parent
             download_dir.mkdir(parents=True, exist_ok=True)
 
-            disable_progress_bars()
-            try:
-                with tqdm_logging_redirect():
-                    snapshot_download(
-                        repo_id=repo_id,
-                        repo_type="dataset",
-                        local_dir=download_dir,
-                        ignore_patterns=[".git*"],
-                        tqdm_class=_tqdm,
-                        force_download=True,
-                    )
-            finally:
-                enable_progress_bars()
+            download_from_huggingface(
+                repo_id=repo_id,
+                download_dir=download_dir,
+                kwargs={
+                    "repo_type": "dataset",
+                    "ignore_patterns": [".git*"],
+                    "force_download": True,
+                },
+            )
 
         self.path = path
         self._collection_cache: dict[str, "Collection"] = {}

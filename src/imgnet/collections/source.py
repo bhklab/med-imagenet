@@ -41,6 +41,14 @@ class ZenodoSource(BaseModel):
     description: str = Field(default="")
 
 
+class HuggingFaceSource(BaseModel):
+    file_type: FileType
+    source: Literal["huggingface"] = "huggingface"
+    repo_id: str
+    post_download: list[str] = Field(default_factory=lambda: ["unzip"])
+    description: str = Field(default="")
+
+
 SourceConfig = Annotated[
     TCIASource | DropboxSource | S3Source | ZenodoSource,
     Field(discriminator="source"),
