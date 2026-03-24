@@ -150,6 +150,9 @@ def get_collection_download_size_bytes(config: SourceConfig) -> float:
         case ZenodoSource():
             out = _download_zenodo(config, dummy_path, dry_run=True)
             return out or 0.0
+        case HuggingFaceSource():
+            out = _download_huggingface(config, dummy_path, dry_run=True)
+            return out or 0.0
 
 
 # ---- post-download steps ----

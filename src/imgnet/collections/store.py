@@ -20,7 +20,7 @@ from imgnet.collections.utils import (
 )
 from imgnet.download.dispatcher import get_collection_download_size_bytes
 from imgnet.download.utils import _fetch_collection_size_idc
-from imgnet.loggers import logger
+from imgnet.loggers import logger, tqdm_logging_redirect
 
 
 class IndexedDatasets:
@@ -49,7 +49,7 @@ class IndexedDatasets:
         if not path.exists() or force_download:
             from huggingface_hub import list_repo_commits
             from imgnet.download.utils import download_from_huggingface
-            
+
             repo_id = "BruhJosh/med-image-index"
             latest_commit = list_repo_commits(
                 repo_id=repo_id, repo_type="dataset"
