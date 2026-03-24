@@ -123,6 +123,7 @@ def _download_huggingface(
         else:
             return 0.0
 
+    logger.info(f"Downloading Hugging Face repository {config.repo_id}")
     download_from_huggingface(
         repo_id=config.repo_id,
         download_dir=output_path,
