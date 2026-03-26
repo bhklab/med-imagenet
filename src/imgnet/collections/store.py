@@ -83,10 +83,8 @@ class IndexedDatasets:
             downloader = DownloadHuggingFace(repo_id)
             downloader.download(
                 output_path=download_dir,
-                kwargs={
-                    "ignore_patterns": [".git*"],
-                    "force_download": True,
-                },
+                ignore_patterns=[".git*"],
+                force_download=True,
             )
 
         self.path = path
