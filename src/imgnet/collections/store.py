@@ -1,6 +1,6 @@
 import functools
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 import orjson
 import pandas as pd
@@ -9,17 +9,27 @@ from rich.table import Table
 from tqdm import tqdm
 
 from imgnet.collections.source import (
+    DropboxSource,
     FileType,
+    HuggingFaceSource,
+    S3Source,
     SourceConfig,
     TCIASource,
+    ZenodoSource,
     source_adapter,
 )
 from imgnet.collections.utils import (
     _default_indexed_datasets_path,
     _fetch_collection_description_tcia,
 )
-from imgnet.download.dispatcher import get_collection_download_size_bytes
-from imgnet.download.utils import _fetch_collection_size_idc
+from imgnet.download.base import BaseDownloader
+from imgnet.download.downloaders import (
+    DownloadDropbox,
+    DownloadHuggingFace,
+    DownloadIDC,
+    DownloadS3,
+    DownloadZenodo,
+)
 from imgnet.loggers import logger, tqdm_logging_redirect
 
 
@@ -48,7 +58,6 @@ class IndexedDatasets:
 
         if not path.exists() or force_download:
             from huggingface_hub import list_repo_commits
-            from imgnet.download.utils import download_from_huggingface
 
             repo_id = "BruhJosh/med-image-index"
             latest_commit = list_repo_commits(
@@ -63,16 +72,18 @@ class IndexedDatasets:
 
             if path.exists():
                 shutil.rmtree(path)
-                logger.debug("Deleted existing indexed datasets directory at %s.", path.resolve())
-            
+                logger.debug(
+                    "Deleted existing indexed datasets directory at %s.",
+                    path.resolve(),
+                )
+
             download_dir = path.parent
             download_dir.mkdir(parents=True, exist_ok=True)
 
-            download_from_huggingface(
-                repo_id=repo_id,
-                download_dir=download_dir,
+            downloader = DownloadHuggingFace(repo_id)
+            downloader.download(
+                output_path=download_dir,
                 kwargs={
-                    "repo_type": "dataset",
                     "ignore_patterns": [".git*"],
                     "force_download": True,
                 },
@@ -144,6 +155,10 @@ class IndexedDatasets:
     def supported_query_tags(self, collection: str) -> dict[str, list[str]]:
         """Return supported query tags per modality for *collection*."""
         return self.get_collection(collection).supported_query_tags
+
+    def downloader(self, collection: str) -> BaseDownloader:
+        """Return the downloader for *collection*."""
+        return self.get_collection(collection).downloader
 
     def display_supported_query_tags(self, collection: str) -> None:
         """Display supported query tags per modality for *collection*."""
@@ -252,6 +267,20 @@ class Collection:
     def file_type(self) -> FileType:
         return self.source_config.file_type
 
+    @property
+    def downloader(self) -> BaseDownloader:
+        match self.source_config:
+            case TCIASource():
+                return DownloadIDC(self.name)
+            case S3Source():
+                return DownloadS3(self.source_config.bucket_name)
+            case ZenodoSource():
+                return DownloadZenodo(self.source_config.record_id)
+            case HuggingFaceSource():
+                return DownloadHuggingFace(self.source_config.repo_id)
+            case DropboxSource():
+                return DownloadDropbox(self.source_config.url)
+
     @functools.cached_property
     def summary(self) -> dict:
         return orjson.loads(
@@ -262,17 +291,7 @@ class Collection:
 
     @functools.cached_property
     def collection_size(self) -> float:
-        config = self.source_config
-
-        try:
-            if config.source == "tcia":
-                return _fetch_collection_size_idc(self.name)
-            return round(
-                float(get_collection_download_size_bytes(config) / 1e9), 2
-            )
-        except Exception as e:
-            logger.error(f"Error getting size for collection {self.name}: {e}")
-            return 0.0
+        return self.downloader.size
 
     @functools.cached_property
     def description(self) -> str:
@@ -328,7 +347,7 @@ class Collection:
             "File Type": self.file_type.value.upper(),
             "Source": self.source_config.source.upper(),
         }
-        
+
         if self.file_type == FileType.NIFTI:
             index = self.index
             if "Modality" in index.columns:
@@ -348,9 +367,9 @@ class Collection:
             for _, value in crawl_json.items():
                 series = value[next(iter(value))]
                 if series.get("Modality"):
-                    summary["Modalities"].add(series["Modality"]) # type: ignore
+                    summary["Modalities"].add(series["Modality"])  # type: ignore
                 if series.get("BodyPartExamined"):
-                    summary["BodyPartsExamined"].add( # type: ignore
+                    summary["BodyPartsExamined"].add(  # type: ignore
                         series["BodyPartExamined"]
                     )
             for key, value in summary.items():
