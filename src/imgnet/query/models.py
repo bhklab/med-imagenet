@@ -8,8 +8,8 @@ import msgpack
 import pandas as pd
 from pydantic import BaseModel, Field, field_validator
 
-from imgnet.collections.store import IndexedDatasets
 from imgnet.collections.source import FileType
+from imgnet.collections.store import IndexedDatasets
 from imgnet.loggers import logger
 
 NUMERIC_OPS = {
@@ -191,9 +191,10 @@ class ValidQuery(BaseModel):
 
     @field_validator("rules", mode="before")
     @classmethod
-    def validate_rules(
-        cls, value: Any
-    ) -> dict[str, Rule | list[Rule]] | None:  # noqa: PLR0912 ANN401
+    def validate_rules(  # noqa: PLR0912
+        cls,
+        value: Any,  # noqa: ANN401
+    ) -> dict[str, Rule | list[Rule]] | None:
         if value is None:
             return None
         if not isinstance(value, dict):
