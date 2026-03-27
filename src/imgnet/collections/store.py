@@ -1,11 +1,10 @@
 import functools
 import shutil
+from difflib import get_close_matches
 from pathlib import Path
 
 import orjson
 import pandas as pd
-from rich import print as rprint
-from rich.table import Table
 from tqdm import tqdm
 
 from imgnet.collections.source import (
@@ -31,6 +30,17 @@ from imgnet.download.downloaders import (
     DownloadZenodo,
 )
 from imgnet.loggers import logger, tqdm_logging_redirect
+
+
+def _unknown_collection_message(known: list[str], name: str) -> str:
+    """Build an error message with optional fuzzy name suggestions."""
+    suggestions = get_close_matches(name, known, n=5, cutoff=0.42)
+    parts = [f"Unknown collection {name!r}."]
+    if suggestions:
+        parts.append("Did you mean: " + ", ".join(suggestions) + "?")
+    else:
+        parts.append("Inspect IndexedDatasets.collections for valid names.")
+    return " ".join(parts)
 
 
 class IndexedDatasets:
@@ -110,9 +120,7 @@ class IndexedDatasets:
     def get_collection(self, name: str) -> "Collection":
         """Return a cached Collection for the given name. Validates that the collection exists."""
         if name not in self.collections:
-            error_message = (
-                f"Unknown collection: {name!r}. Known: {self.collections}"
-            )
+            error_message = _unknown_collection_message(self.collections, name)
             logger.error(error_message)
             raise ValueError(error_message)
         if name not in self._collection_cache:
@@ -158,21 +166,7 @@ class IndexedDatasets:
         """Return the downloader for *collection*."""
         return self.get_collection(collection).downloader
 
-    def display_supported_query_tags(self, collection: str) -> None:
-        """Display supported query tags per modality for *collection*."""
-        supported_tags = self.supported_query_tags(collection)
-        table = Table(title=f"Supported Query Tags for {collection}")
-        table.add_column("Modality", justify="left")
-        table.add_column("Supported Query Tags", justify="left")
-        first = True
-        for modality, tags in supported_tags.items():
-            if not first:
-                table.add_row("", "")  # Add a blank line between rows
-            table.add_row(modality, ", ".join(tags))
-            first = False
-        rprint(table)
-
-    # ---- summary / display ----
+    # ---- summary ----
 
     def summary(self, update: bool = False) -> dict:
         """Parsed ``collections_summary.json``, or ``None`` if it doesn't exist."""
@@ -199,31 +193,7 @@ class IndexedDatasets:
                 collection_db[collection] = self.get_collection(
                     collection
                 ).build_summary_entry()
-        return collection_db
-
-    def display_summary(self, update: bool = False) -> None:
-        table = Table(title="Collections Summary")
-        table.add_column("Collection", justify="left")
-        table.add_column("BodyPartsExamined", justify="left")
-        table.add_column("Modalities", justify="left")
-        table.add_column("Images", justify="right")
-        table.add_column("Size", justify="right")
-        table.add_column("File Type", justify="left")
-        table.add_column("Source", justify="left")
-        collection_db = self.summary(update)
-
-        for collection, info in collection_db.items():
-            table.add_row(
-                collection,
-                ", ".join(info["BodyPartsExamined"]),
-                ", ".join(info["Modalities"]),
-                f"{info['Images']}",
-                f"{info['Size']} GB",
-                f"{info['File Type']}",
-                f"{info['Source']}",
-            )
-
-        rprint(table)
+        return collection_db        
 
 
 class Collection:
