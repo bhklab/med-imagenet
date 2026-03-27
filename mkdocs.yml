@@ -8,6 +8,7 @@ markdown_extensions:
       permalink: "#"
       permalink_title: Anchor link to this section for reference
       toc_depth: 3
+  - mkdocs-click
   - admonition
   - pymdownx.inlinehilite
   - pymdownx.snippets
@@ -20,7 +21,7 @@ markdown_extensions:
   - pymdownx.keys
   - pymdownx.arithmatex:
       generic: true
-  - pymdownx.highlight: # from https://squidfunk.github.io/mkdocs-material/reference/code-blocks/
+  - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
       use_pygments: true
@@ -35,48 +36,61 @@ markdown_extensions:
   - footnotes
 
 plugins:
-  - redirects:
-      redirect_maps:
-        "index.md": "Overview/index.md"
-  - awesome-pages # simplifies configuring page titles and their order
-  - search # necessary for search functionality to work
-  - git-authors # adds authors to pages using git history
-  - autorefs: # automatically link to another page's ref
+  - awesome-pages
+  - search
+  - git-authors
+  - autorefs:
       resolve_closest: true
-  - git-revision-date-localized: # adds a date to the bottom of each page
+  - git-revision-date-localized:
       enable_creation_date: true
-  - include-markdown # allows for including Markdown files into another Markdown file
-  - mike # mike handles versioned documentation
+  - include-markdown
+  - mike
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: numpy
+            docstring_section_style: table
+            filters: ["!^_"]
+            merge_init_into_class: true
+            inherited_members: true
+            parameter_headings: true
+            show_bases: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            show_source: true
+            separate_signature: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+            modernize_annotations: true
+            annotations_path: full
+            unwrap_annotated: true
 
 theme:
-  # logo: assets/bhklab_logo.png
   name: material
   icon:
     annotation: material/plus-circle
     repo: fontawesome/brands/github
   features:
-    - header.autohide # hides header when scrolling down
-    ###########################################################################
-    - content.code.annotate # adds annotations to code blocks
-    - content.code.copy # adds a copy button to code blocks
-    - content.code.select # allows selecting text in code blocks
-    - content.tabs.link # links between tabbed content
-    - content.tooltips # enables tooltips for additional info
-    ###########################################################################
-    - navigation.indexes # provides index pages for navigation
-    - navigation.instant # instant loading of pages
-    - navigation.instant.prefetch # prefetches pages for instant navigation
-    - navigation.path # displays path navigation
-    # - navigation.tabs                  # adds tab navigation support
-    - navigation.top # back to top navigation button
-    - navigation.tracking # tracks page navigation statistics
-    - navigation.footer # adds a footer to the bottom of the page
-    ###########################################################################
-    - search.highlight # highlights search terms
-    - search.suggest # suggests search query completions
-    - search.share # adds a share button to search results
-    ###########################################################################
-    - toc.follow # keeps track of the current table of contents entry
+    - content.code.annotate
+    - content.code.copy
+    - content.code.select
+    - content.tabs.link
+    - content.tooltips
+    - navigation.footer
+    - navigation.indexes
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - search.share
+    - toc.follow
   font:
     text: Red Hat Text
     code: JetBrains Mono

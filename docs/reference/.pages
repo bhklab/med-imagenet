@@ -1,0 +1,7 @@
+nav:
+  - ImgNet: imgnet.md
+  - Query: query
+  - Collections: collections
+  - Download: download
+  - Utilities: utils.md
+  - Logging: loggers.md

@@ -78,26 +78,11 @@ def query(
     file_type: str | None,
     rules: str,
 ) -> None:
-    """
-    Query crawled TCIA datasets and optionally download selected DICOMs using idc-index.
-    A list of selected seriesUIDs for each collection will be saved at `output_path`/selected_seriesuids.csv,
-    along with the JSON schema for a ValidQuery object and a JSON representation of the supplied query.
+    """Query indexed datasets and save selected series for downstream use.
 
-    Parameters
-    ----------
-
-    output_path: `Path`
-        The directory where query results will be saved.
-    input_path: `Path`
-        A JSON file representing the query parameters.
-    collections: `str` | `list[str]`
-        The list of collections to query, if `input_path` is not supplied.
-    modalities: `str` | `list[str]`
-        The list of modality queries to run, if `input_path` is not supplied.
-    file_type: `str` | None
-        The file type to restrict the query to. If omitted, defaults to all.
-    rules: `str`
-        A JSON string representation of the filter rules to apply to the query, if `input_path` is not supplied.
+    Saves query_results.csv, valid_query.json, and valid_query_schema.json
+    to the output directory. Pipe the output into `imgnet download` to
+    retrieve the matched series.
     """
     if output_path is not None:
         output_path = Path(output_path)
