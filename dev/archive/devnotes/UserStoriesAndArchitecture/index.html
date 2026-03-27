@@ -8,26 +8,28 @@
       
       
       
-        <link rel="canonical" href="https://bhklab.github.io/med-imagenet/dev/">
+        <link rel="canonical" href="https://bhklab.github.io/med-imagenet/dev/archive/devnotes/UserStoriesAndArchitecture/">
       
       
+        <link rel="prev" href="../Med-ImageDB/">
       
-        <link rel="next" href="usage/">
+      
+        <link rel="next" href="../Inspiration/">
       
       
-      <link rel="icon" href="assets/images/favicon.png">
+      <link rel="icon" href="../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.50">
     
     
       
-        <title>Med-ImageNet</title>
+        <title>User Stories - Med-ImageNet</title>
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.a40c8224.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.a40c8224.min.css">
       
         
-        <link rel="stylesheet" href="assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.06af60db.min.css">
       
       
 
@@ -52,9 +54,9 @@
       
     
     
-      <link rel="stylesheet" href="assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -80,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#med-imagenet-a-standardized-resource-for-ai-ready-oncology-imaging" class="md-skip">
+        <a href="#user-stories" class="md-skip">
           Skip to content
         </a>
       
@@ -96,7 +98,7 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="." title="Med-ImageNet" class="md-header__button md-logo" aria-label="Med-ImageNet" data-md-component="logo">
+    <a href="../../.." title="Med-ImageNet" class="md-header__button md-logo" aria-label="Med-ImageNet" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -116,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Home
+              User Stories
             
           </span>
         </div>
@@ -232,11 +234,9 @@
         
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="." class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
         
   
     
@@ -255,7 +255,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="usage/" class="md-tabs__link">
+        <a href="../../../usage/" class="md-tabs__link">
           
   
     
@@ -275,7 +275,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="cli/imgnet/" class="md-tabs__link">
+        <a href="../../../cli/imgnet/" class="md-tabs__link">
           
   
     
@@ -295,7 +295,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="reference/imgnet/" class="md-tabs__link">
+        <a href="../../../reference/imgnet/" class="md-tabs__link">
           
   
     
@@ -336,7 +336,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="." title="Med-ImageNet" class="md-nav__button md-logo" aria-label="Med-ImageNet" data-md-component="logo">
+    <a href="../../.." title="Med-ImageNet" class="md-nav__button md-logo" aria-label="Med-ImageNet" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -363,30 +363,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  <span class="md-ellipsis">
-    Home
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="." class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -395,71 +375,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#core-features" class="md-nav__link">
-    <span class="md-ellipsis">
-      Core Features
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#platform-components" class="md-nav__link">
-    <span class="md-ellipsis">
-      Platform Components
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installing-med-imagenet" class="md-nav__link">
-    <span class="md-ellipsis">
-      Installing Med-ImageNet
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-capabilities" class="md-nav__link">
-    <span class="md-ellipsis">
-      Key Capabilities
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#license" class="md-nav__link">
-    <span class="md-ellipsis">
-      License
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -494,7 +409,7 @@
           
           
           <div class="md-nav__link md-nav__container">
-            <a href="usage/" class="md-nav__link ">
+            <a href="../../../usage/" class="md-nav__link ">
               
   
   <span class="md-ellipsis">
@@ -573,7 +488,7 @@
   
   
     <li class="md-nav__item">
-      <a href="cli/imgnet/" class="md-nav__link">
+      <a href="../../../cli/imgnet/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -655,7 +570,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/imgnet/" class="md-nav__link">
+      <a href="../../../reference/imgnet/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -724,7 +639,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/query/models/" class="md-nav__link">
+      <a href="../../../reference/query/models/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -745,7 +660,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/query/parser/" class="md-nav__link">
+      <a href="../../../reference/query/parser/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -766,7 +681,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/query/engine/" class="md-nav__link">
+      <a href="../../../reference/query/engine/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -843,7 +758,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/collections/store/" class="md-nav__link">
+      <a href="../../../reference/collections/store/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -864,7 +779,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/collections/source/" class="md-nav__link">
+      <a href="../../../reference/collections/source/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -885,7 +800,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/collections/utils/" class="md-nav__link">
+      <a href="../../../reference/collections/utils/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -962,7 +877,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/download/base/" class="md-nav__link">
+      <a href="../../../reference/download/base/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -983,7 +898,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/download/downloaders/" class="md-nav__link">
+      <a href="../../../reference/download/downloaders/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1004,7 +919,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/download/utils/" class="md-nav__link">
+      <a href="../../../reference/download/utils/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1033,7 +948,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/utils/" class="md-nav__link">
+      <a href="../../../reference/utils/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1054,7 +969,7 @@
   
   
     <li class="md-nav__item">
-      <a href="reference/loggers/" class="md-nav__link">
+      <a href="../../../reference/loggers/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1102,45 +1017,105 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#core-features" class="md-nav__link">
+  <a href="#context" class="md-nav__link">
     <span class="md-ellipsis">
-      Core Features
+      Context
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#platform-components" class="md-nav__link">
+  <a href="#user-pain-points" class="md-nav__link">
     <span class="md-ellipsis">
-      Platform Components
+      User Pain Points
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#installing-med-imagenet" class="md-nav__link">
+  <a href="#user-groups" class="md-nav__link">
     <span class="md-ellipsis">
-      Installing Med-ImageNet
+      User Groups
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#key-capabilities" class="md-nav__link">
+  <a href="#user-needs" class="md-nav__link">
     <span class="md-ellipsis">
-      Key Capabilities
+      User Needs
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#license" class="md-nav__link">
+  <a href="#user-personas-flow" class="md-nav__link">
     <span class="md-ellipsis">
-      License
+      User Personas Flow
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Architecture
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#components" class="md-nav__link">
+    <span class="md-ellipsis">
+      Components
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#user-data-flow-interaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      User Data Flow &amp; Interaction
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#architecture-diagram" class="md-nav__link">
+    <span class="md-ellipsis">
+      Architecture Diagram
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#technical-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      Technical Scope
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#glossary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Glossary
     </span>
   </a>
   
@@ -1164,51 +1139,338 @@
   
 
 
-<h1 id="med-imagenet-a-standardized-resource-for-ai-ready-oncology-imaging">Med-ImageNet: A Standardized Resource for AI-Ready Oncology Imaging<a class="headerlink" href="#med-imagenet-a-standardized-resource-for-ai-ready-oncology-imaging" title="Anchor link to this section for reference">#</a></h1>
-<h2 id="core-features">Core Features<a class="headerlink" href="#core-features" title="Anchor link to this section for reference">#</a></h2>
-<p>Med-ImageNet is an open-source platform that transforms heterogeneous
-cancer imaging collections into harmonized, AI-ready resources for
-oncology research. It provides tools to <strong>query</strong>, <strong>download</strong>, and
-<strong>preprocess</strong> medical imaging datasets from public and user-provided
-sources through a unified Python interface.</p>
-<p><img alt="Index" src="figures/overview.png" /></p>
-<h2 id="platform-components">Platform Components<a class="headerlink" href="#platform-components" title="Anchor link to this section for reference">#</a></h2>
-<p>The platform comprises three integrated components:</p>
+<h1 id="user-stories">User Stories<a class="headerlink" href="#user-stories" title="Anchor link to this section for reference">#</a></h1>
+<h2 id="context">Context<a class="headerlink" href="#context" title="Anchor link to this section for reference">#</a></h2>
+<p>Med-ImageNet is a framework for accessing, retrieving, and preprocessing
+medical imaging datasets from public and user-provided sources. 
+It bridges raw imaging data and downstream AI/ML workflows with
+standardized tools for querying, loading, and visualizing medical images.</p>
+<h2 id="user-pain-points">User Pain Points<a class="headerlink" href="#user-pain-points" title="Anchor link to this section for reference">#</a></h2>
+<p>Medical imaging researchers and data scientists face a variety of challenges when 
+working with large-scale datasets and building reproducible pipelines. The following 
+pain points illustrate the key barriers that Med-ImageNet aims to address:</p>
+<ul>
+<li>
+<p><strong>Fragmented Access to Public Datasets:</strong> Public repositories like TCIA are rich 
+  resources, but their interfaces can be inconsistent, poorly documented, or 
+  difficult to access programmatically. This slows down research and introduces 
+  manual steps in data acquisition workflows.</p>
+</li>
+<li>
+<p><strong>Limited Metadata Querying Capabilities:</strong> Finding relevant datasets based on 
+  imaging modality, disease type, or annotation availability is often difficult. 
+  Users typically need to manually inspect metadata or download large index files 
+  to perform even basic filtering tasks.</p>
+</li>
+<li>
+<p><strong>Inconsistent Data Formats and Standards:</strong> Imaging data is often stored in
+  DICOM format, which is <em>supposed</em> to be a standard but can vary in practice.
+  There are many tools online that make strict assumptions and are not always
+  robust with the massive variation in dicom data.
+  Moreover, researchers spend a significant amount of time converting data to
+  a common format (NIfTI, HDF5) for machine learning workflows.</p>
+</li>
+<li>
+<p><strong>Lack of Reusable Preprocessing Pipelines:</strong> There is no common framework to 
+  perform tasks such as intensity normalization, resampling, or segmentation. 
+  Researchers often implement these steps manually, leading to duplicated effort 
+  and difficulty in reproducing results.</p>
+</li>
+<li>
+<p><strong>Poor Visualization Tooling for Medical Images:</strong> Many researchers lack tools to 
+  interactively explore 2D/3D medical images with overlays of masks or annotations. 
+  Visualization is often limited to static plots or external viewers with steep 
+  learning curves.</p>
+</li>
+<li>
+<p><strong>Scattered Tooling Ecosystem:</strong> Tools for downloading, preprocessing, visualizing, 
+  and analyzing medical imaging data are scattered across different languages, 
+  formats, and libraries. This leads to brittle pipelines and high onboarding time 
+  for new users.</p>
+</li>
+</ul>
+<p>Med-ImageNet aims to eliminate these bottlenecks by providing a consistent, unified 
+Python interface for querying datasets, preprocessing images, and preparing data for 
+machine learning workflows.</p>
+<h2 id="user-groups">User Groups<a class="headerlink" href="#user-groups" title="Anchor link to this section for reference">#</a></h2>
+<p>These groups represent the primary users of Med-ImageNet and their respective needs.
+For the most part, these groups are not mutually exclusive and may overlap in practice.</p>
+<p>For example, since a primary feature of Med-ImageNet is to provide access to
+medical imaging datasets for downstream work, both ML Engineers and Bioinformaticians
+will follow a similar workflow of data access and preprocessing before diverging
+into their respective tasks of model training and feature analysis.</p>
+<h4 id="machine-learning-engineers-data-scientists-mlds">Machine Learning Engineers &amp; Data Scientists (ML/DS)<a class="headerlink" href="#machine-learning-engineers-data-scientists-mlds" title="Anchor link to this section for reference">#</a></h4>
+<ul>
+<li>Develop and optimize deep learning models for medical imaging</li>
+<li>Create and validate AI models for diagnosis and prognosis</li>
+<li>Need efficient data loading and preprocessing pipelines</li>
+<li>Require standardized evaluation metrics and benchmarks</li>
+</ul>
+<h4 id="computational-biologists-bioinformaticians-cbb">Computational Biologists &amp; Bioinformaticians (CB/B)<a class="headerlink" href="#computational-biologists-bioinformaticians-cbb" title="Anchor link to this section for reference">#</a></h4>
+<ul>
+<li>Analyze radiomic features and multi-modal medical datasets</li>
+<li>Integrate imaging data with genomic and clinical information</li>
+<li>Perform statistical analysis and hypothesis testing</li>
+<li>Extract quantitative features from medical images</li>
+</ul>
+<h4 id="software-engineers-devops-swedevops-stretch-goal">Software Engineers &amp; DevOps (SWE/DevOps) [Stretch Goal]<a class="headerlink" href="#software-engineers-devops-swedevops-stretch-goal" title="Anchor link to this section for reference">#</a></h4>
+<ul>
+<li>Deploy and maintain Med-ImageNet in clinical or research environments</li>
+<li>Ensure system reliability and performance</li>
+<li>Implement security and access control measures</li>
+<li>Manage data storage and retrieval infrastructure</li>
+</ul>
+<h2 id="user-needs">User Needs<a class="headerlink" href="#user-needs" title="Anchor link to this section for reference">#</a></h2>
+<p>As a (ML/DS, CB/B), I would want to be able to</p>
+<ul>
+<li>know what access I have to publicly available datasets<ul>
+<li>Browse available datasets with clear documentation</li>
+<li>Understand dataset characteristics and limitations</li>
+<li>Access dataset statistics and quality metrics</li>
+</ul>
+</li>
+<li>know how I can access and download these datasets<ul>
+<li>Simple authentication and authorization process</li>
+<li>Clear documentation on data usage rights</li>
+<li>Efficient download mechanisms for large datasets</li>
+</ul>
+</li>
+<li>query publicly available datasets for specific data<ul>
+<li>Search by modality, disease, patient characteristics</li>
+<li>Filter by image quality and annotation availability</li>
+<li>Access metadata programmatically</li>
+</ul>
+</li>
+</ul>
+<p>As a (ML/DS, CB/B), I want a set of tools that can help me</p>
+<ul>
+<li>preprocess and clean medical imaging data<ul>
+<li>converting to <code>SimpleITK.Image</code> objects </li>
+<li>indexing and querying metadata</li>
+</ul>
+</li>
+<li>visualize and explore medical imaging data<ul>
+<li>2D/3D visualization</li>
+<li>interactive exploration</li>
+</ul>
+</li>
+</ul>
+<p>As a (ML/DS, CB/B), I want a single Python API that can</p>
+<ul>
+<li>load and access (potentially large) medical imaging datasets</li>
+<li>provide a consistent interface for data access and preprocessing</li>
+<li>integrate with popular deep learning frameworks (e.g. PyTorch, TensorFlow)</li>
+</ul>
+<h2 id="user-personas-flow">User Personas Flow<a class="headerlink" href="#user-personas-flow" title="Anchor link to this section for reference">#</a></h2>
+<pre class="mermaid"><code>graph TD
+    ML[Machine Learning Engineer&lt;br&gt;&amp; Data Scientist] --&gt;|Develops| AI[AI Models]
+    ML --&gt;|Uses| Data[Data Pipeline]
+
+    CB[Computational Biologist&lt;br&gt;&amp; Bioinformatician] --&gt;|Analyzes| Features[Radiomic Features]
+    CB --&gt;|Integrates| Multi[Multi-modal Data]
+
+    SWE[Software Engineer&lt;br&gt;&amp; DevOps] --&gt;|Maintains| Infra[Infrastructure]
+    SWE --&gt;|Ensures| Security[Security &amp; Access]
+
+    Data --&gt;|Feeds| AI
+    Data --&gt;|Provides| Features
+    Infra --&gt;|Supports| Data</code></pre>
+<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Anchor link to this section for reference">#</a></h2>
+<p>The architecture of Med-ImageNet is designed to provide seamless access to
+public medical imaging datasets, while also allowing users to bring their
+own data for analysis and processing. The system consists of
+three major components:</p>
+<h3 id="components">Components<a class="headerlink" href="#components" title="Anchor link to this section for reference">#</a></h3>
 <ol>
 <li>
-<p><strong>Med-ImageDB</strong> -- Dataset indexing, query API, and secure image and
-   metadata retrieval across all supported collections. The index can be found
-   <a href="https://huggingface.co/datasets/BruhJosh/med-image-index">here</a>.</p>
+<p>Public Medical Imaging Databases</p>
+<ul>
+<li>These databases host publicly available medical imaging datasets,
+including radiological images (CT, MRI, PET) and associated metadata
+such as patient demographics, pathology reports, and annotations</li>
+<li><strong>Example:</strong> TCIA (The Cancer Imaging Archive) provides a
+repository of de-identified medical images for research</li>
+<li>Additionally, some databases may have <code>Annotation</code> data that can be
+used for training and validation of AI models such as
+<code>DICOM-SEG</code> or <code>DICOM-RTSTRUCT</code></li>
+</ul>
 </li>
 <li>
-<p><strong>Med-ImageTools</strong> --
-   Standardized preprocessing including DICOM ingestion, voxel harmonization,
-   intensity normalization, and metadata alignment. The tools can be found <a href="https://github.com/bhklab/med-imagetools">here</a>.</p>
+<p>Med-ImageDB (Data Indexing &amp; Access Layer)</p>
+<ul>
+<li>A Python package that acts as an intermediary between users and multiple public databases</li>
+<li>Indexes datasets from sources like TCIA, making them searchable and accessible through a standardized API</li>
+<li>Supports metadata queries to filter datasets by modality, annotation availability, ROI Name, etc.</li>
+<li>Handles (maybe) authentication, and efficient downloading of large datasets</li>
+</ul>
 </li>
 <li>
-<p><strong>Med-ImageNet Repository</strong> -- Unifies these modules into a scalable and
-   reproducible data compendium supporting both raw data access and AI-ready
-   outputs (e.g., NIfTI format) for deep learning integration.</p>
+<p>Med-ImageTools (Processing &amp; Preprocessing Layer)</p>
+<ul>
+<li>A Python package that enables seamless data processing for both indexed datasets from Med-ImageDB and user-provided imaging data</li>
+<li>Supports format conversion (e.g., SimpleITK.Image, numpy.ndarray)</li>
+<li>Implements preprocessing functions such as intensity normalization, resampling, and segmentation</li>
+<li>Provides visualization tools for 2D and 3D exploration of medical images</li>
+<li>Integrates with deep learning frameworks (e.g., PyTorch, TensorFlow) for model training and inference</li>
+</ul>
 </li>
 </ol>
-<p><img alt="Architecture" src="figures/architecture.png" /></p>
-<h2 id="installing-med-imagenet">Installing Med-ImageNet<a class="headerlink" href="#installing-med-imagenet" title="Anchor link to this section for reference">#</a></h2>
-<div class="language-console highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="go">pip install med-imagenet</span>
-</span></code></pre></div>
-<div class="language-console highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="go">imgnet --help</span>
-</span></code></pre></div>
-<h2 id="key-capabilities">Key Capabilities<a class="headerlink" href="#key-capabilities" title="Anchor link to this section for reference">#</a></h2>
+<h3 id="user-data-flow-interaction">User Data Flow &amp; Interaction<a class="headerlink" href="#user-data-flow-interaction" title="Anchor link to this section for reference">#</a></h3>
+<p>There are two main pathways for users:</p>
+<ol>
+<li>
+<p>Public Dataset Access &amp; Processing</p>
 <ul>
-<li>Queries across <strong>all supported collections</strong> with associated metadata</li>
-<li>Establishes explicit links between <strong>paired imaging modalities</strong>
-  (e.g., CT with RTSTRUCTs)</li>
-<li>Query and request datasets based on <strong>imaging region</strong> and <strong>imaging modality</strong></li>
-<li>Downloads from TCIA/IDC, S3, Dropbox, Zenodo, and HuggingFace sources</li>
-<li>Processes raw DICOM files to generate <strong>AI-ready NIfTI outputs</strong>,
-  tabular metadata files, and dataset summaries</li>
+<li>Users query Med-ImageDB to find relevant datasets from public sources</li>
+<li>The system retrieves dataset metadata from sources like TCIA</li>
+<li>Users download datasets through Med-ImageDB</li>
+<li>The raw imaging data is passed to Med-ImageTools for preprocessing and analysis</li>
 </ul>
-<h2 id="license">License<a class="headerlink" href="#license" title="Anchor link to this section for reference">#</a></h2>
-<p>This project uses the following license: <a href="https://github.com/bhklab/med-imagenet/blob/main/LICENSE">MIT License</a></p>
+</li>
+<li>
+<p>User-Provided Data Processing</p>
+<ul>
+<li>Users can bring their own imaging data directly into Med-ImageTools, bypassing Med-ImageDB</li>
+<li>The same preprocessing and analysis tools are available for both public and 
+  user-provided datasets, they will have to process themselves.</li>
+<li>This allows for flexibility in research workflows, integrating proprietary or experimental datasets</li>
+</ul>
+</li>
+</ol>
+<h3 id="architecture-diagram">Architecture Diagram<a class="headerlink" href="#architecture-diagram" title="Anchor link to this section for reference">#</a></h3>
+<pre class="mermaid"><code>flowchart TD
+ subgraph External["External"]
+        TCIA["TCIA: The Cancer Imaging Archive"]
+        DB1["NMDID: New Mexico Decedent Image Database"]
+        DB2["PlaceholderDB2"]
+        UserData["User-Provided Data"]
+  end
+ subgraph s1["Med-ImageDB"]
+        Indexing["Dataset Indexing"]
+        Query["Search &amp; Query API"]
+        Access["Data Access &amp; Retrieval"]
+  end
+ subgraph s2["Med-ImageTools"]
+        Preprocess["Preprocessing"]
+        Visualize["Visualization"]
+  end
+ subgraph s3["Med-ImageNet"]
+        s1
+        s2
+  end
+    Users["ML Engineers / Bioinformaticians"] -- Search, Retrieve --&gt; Query
+    Users -- Directly Upload Data --&gt; UserData
+    TCIA -- Indexes --&gt; Indexing
+    DB1 -- Indexes --&gt; Indexing
+    DB2 -- Indexes --&gt; Indexing
+    UserData -- "Bypass Med-ImageDB" --&gt; Preprocess
+    Indexing -- Provides Searchable Data --&gt; Query
+    Query -- Retrieves Data --&gt; Access
+    Access -- Provides Raw Imaging Data (DICOM) --&gt; Preprocess
+    Preprocess -- "Processes AI-Ready Data" --&gt; AI-Ready["Deep Learning Integration"]
+    Access -- "Provides AI-Ready Data (NIFTI)" --&gt; AI-Ready
+    Preprocess -- Processed Images --&gt; Visualize</code></pre>
+<h2 id="technical-scope">Technical Scope<a class="headerlink" href="#technical-scope" title="Anchor link to this section for reference">#</a></h2>
+<p>Defining granular technical requirements for each componenet</p>
+<ol>
+<li>
+<p>Med-ImageDB</p>
+<ul>
+<li>Input: TCIA API / List of public datasets</li>
+<li>Output: Med-ImageNet index</li>
+</ul>
+</li>
+<li>
+<p>Med-ImageTools</p>
+<ul>
+<li>Input: Raw Imaging Data / DICOM (CT, MR, PET, RTDOSE, RTSTRUCT, SEG)</li>
+<li>Output: AI-Ready Data / NIfTI, HDF5</li>
+</ul>
+</li>
+</ol>
+<h2 id="glossary">Glossary<a class="headerlink" href="#glossary" title="Anchor link to this section for reference">#</a></h2>
+<hr />
+<p><strong>AI-Ready</strong><br />
+Imaging data that has been preprocessed to meet the input requirements of
+machine learning pipelines.</p>
+<ul>
+<li>This typically includes format conversion (e.g.,
+    DICOM to NIfTI) and possibly some transformations. </li>
+<li>Importantly, there will should be some metadata to accompany the data
+    that adds context to the data, including fields from the DICOM file,
+    computed information (size, shape, etc.), possible references to
+    other series or studies, and any annotations that may be available.</li>
+</ul>
+<hr />
+<p><strong>Annotation</strong><br />
+Supplementary data associated with medical images that describe structures,
+regions of interest (ROIs), or diagnoses. Examples include segmentations
+(DICOM-SEG), radiotherapy structures (DICOM-RTSTRUCT), or bounding boxes.</p>
+<hr />
+<p><strong>DICOM (Digital Imaging and Communications in Medicine)</strong><br />
+A standard format for storing and transmitting medical images and metadata.
+DICOM files are often used in clinical imaging and contain detailed metadata
+about the patient, acquisition parameters, and study information.</p>
+<hr />
+<p><strong>DICOM-SEG</strong><br />
+A standardized DICOM object for storing segmentation masks. Each mask encodes
+a region of interest (e.g., tumor) as a labelmap aligned to the original image.</p>
+<hr />
+<p><strong>DICOM-RTSTRUCT</strong><br />
+A type of DICOM object used in radiotherapy to define contours of anatomical
+structures. These are often used for planning radiation therapy and may contain
+multiple labeled ROIs.</p>
+<hr />
+<p><strong>Indexing</strong><br />
+The process of collecting and organizing metadata about imaging datasets to
+enable fast search, filtering, and access. Med-ImageDB performs indexing from
+public sources like TCIA.</p>
+<hr />
+<p><strong>Metadata</strong><br />
+Information about an image or dataset, such as patient age, modality, scan date,
+disease site, and annotation availability. Metadata is critical for filtering,
+querying, and dataset selection.</p>
+<hr />
+<p><strong>Modality</strong><br />
+The imaging technique used to acquire the data, such as CT (Computed Tomography),
+MRI (Magnetic Resonance Imaging), or PET (Positron Emission Tomography).</p>
+<hr />
+<p><strong>NIfTI (Neuroimaging Informatics Technology Initiative)</strong><br />
+A common file format (.nii or .nii.gz) used for storing medical imaging data
+in research, particularly in neuroimaging and machine learning applications.</p>
+<hr />
+<p><strong>Preprocessing</strong><br />
+The set of operations applied to raw imaging data to prepare it for analysis or
+modeling. This may include resampling, normalization, cropping, masking, or
+alignment to a reference space.</p>
+<hr />
+<p><strong>Radiomics</strong><br />
+The extraction of quantitative features from medical images, often used to
+describe shape, texture, and intensity patterns. Radiomics enables non-invasive
+characterization of tumors and other structures.</p>
+<hr />
+<p><strong>Region of Interest (ROI)</strong><br />
+A specific area within an image that is annotated for analysis, such as a tumor,
+organ, or anatomical region. ROIs are usually defined using masks or contours.</p>
+<hr />
+<p><strong>Resampling</strong><br />
+The process of changing the spatial resolution or voxel spacing of an image to
+ensure consistency across samples. This is important for aligning data from
+different scanners or modalities.</p>
+<hr />
+<p><strong>SimpleITK</strong><br />
+A simplified interface to the Insight Segmentation and Registration Toolkit
+(ITK), used for reading, writing, and processing medical images in Python.</p>
+<hr />
+<p><strong>TCIA (The Cancer Imaging Archive)</strong><br />
+A publicly accessible repository of de-identified medical images organized into
+collections, often with accompanying clinical and genomic data. Med-ImageNet
+uses TCIA as a primary public data source.</p>
+<hr />
+<p><strong>Visualization</strong><br />
+Tools or processes used to explore and inspect medical images in 2D or 3D.
+Visualization may include overlaying masks, plotting slices, or interactive
+navigation across image volumes.</p>
 
 
 
@@ -1241,7 +1503,7 @@ sources through a unified Python interface.</p>
     <span class="md-icon" title="Created">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">March 27, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">March 11, 2025</span>
   </span>
 
     
@@ -1251,12 +1513,14 @@ sources through a unified Python interface.</p>
   <span class="md-source-file__fact">
     <span class="md-icon" title="Contributors">
       
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 5.5A3.5 3.5 0 0 1 15.5 9a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 8.5 9 3.5 3.5 0 0 1 12 5.5M5 8c.56 0 1.08.15 1.53.42-.15 1.43.27 2.85 1.13 3.96C7.16 13.34 6.16 14 5 14a3 3 0 0 1-3-3 3 3 0 0 1 3-3m14 0a3 3 0 0 1 3 3 3 3 0 0 1-3 3c-1.16 0-2.16-.66-2.66-1.62a5.54 5.54 0 0 0 1.13-3.96c.45-.27.97-.42 1.53-.42M5.5 18.25c0-2.07 2.91-3.75 6.5-3.75s6.5 1.68 6.5 3.75V20h-13zM0 20v-1.5c0-1.39 1.89-2.56 4.45-2.9-.59.68-.95 1.62-.95 2.65V20zm24 0h-3.5v-1.75c0-1.03-.36-1.97-.95-2.65 2.56.34 4.45 1.51 4.45 2.9z"/></svg>
       
     </span>
     <nav>
       
-        <a href="mailto:joshua.siraj@ryerson.ca">Joshua Siraj</a>
+        <a href="mailto:jermiahjoseph98@gmail.com">Jermiah Joseph</a>, 
+        <a href="mailto:44614774+jjjermiah@users.noreply.github.com">Jermiah Joseph</a>, 
+        <a href="mailto:40668167+skim2257@users.noreply.github.com">Sejin Kim</a>
     </nav>
   </span>
 
@@ -1292,15 +1556,31 @@ sources through a unified Python interface.</p>
       
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
+          
+          <a href="../Med-ImageDB/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Med-ImageDB (Medical Image Database)">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Med-ImageDB (Medical Image Database)
+              </div>
+            </div>
+          </a>
+        
         
           
-          <a href="usage/" class="md-footer__link md-footer__link--next" aria-label="Next: Getting Started">
+          <a href="../Inspiration/" class="md-footer__link md-footer__link--next" aria-label="Next: Inspiration">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Getting Started
+                Inspiration
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -1334,10 +1614,10 @@ sources through a unified Python interface.</p>
     </div>
     
     
-    <script id="__config" type="application/json">{"base": ".", "features": ["content.code.annotate", "content.code.copy", "content.code.select", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "search.highlight", "search.suggest", "search.share", "toc.follow"], "search": "assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../../..", "features": ["content.code.annotate", "content.code.copy", "content.code.select", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "search.highlight", "search.suggest", "search.share", "toc.follow"], "search": "../../../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="assets/javascripts/bundle.60a45f97.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.60a45f97.min.js"></script>
       
         <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
       
