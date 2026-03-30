@@ -69,14 +69,15 @@ class IndexedDatasets:
         if not path.exists() or force_download:
             from huggingface_hub import list_repo_commits
 
-            repo_id = "BruhJosh/med-image-index"
+            repo_id = "bhklab2026/med-image-index"
             latest_commit = list_repo_commits(
                 repo_id=repo_id, repo_type="dataset"
             )[0].title
             logger.warning(
                 "Indexed datasets not found at %s or force_download is True. "
-                "Downloading latest release from Hugging Face. Latest commit: %s",
+                "Downloading latest release from Hugging Face, for repo %s. Latest commit: %s",
                 path.resolve(),
+                repo_id,
                 latest_commit,
             )
 
