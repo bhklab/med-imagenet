@@ -37,6 +37,10 @@ markdown_extensions:
 
 plugins:
   - awesome-pages
+  - redirects:
+      redirect_maps:
+        index.md: home/introduction.md
+        home/index.md: home/introduction.md
   - search
   - git-authors
   - autorefs:

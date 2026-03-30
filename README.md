@@ -16,7 +16,7 @@ The platform comprises three integrated components:
 
 1. **Med-ImageDB** -- Dataset indexing, query API, and secure image and
    metadata retrieval across all supported collections. The index can be found
-   [here](https://huggingface.co/datasets/BruhJosh/med-image-index).
+   [here](https://huggingface.co/datasets/bhklab2026/med-image-index).
 
 2. **Med-ImageTools** --
    Standardized preprocessing including DICOM ingestion, voxel harmonization,
