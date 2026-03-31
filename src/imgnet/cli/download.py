@@ -63,7 +63,7 @@ def download(
     store = IndexedDatasets()
     path = Path(manifest_or_token)
     if path.is_file():
-        with open(path, "r") as f:
+        with path.open("r") as f:
             manifest = pd.read_csv(f)
         logger.info(f"Downloading from manifest file: {path}")
     else:

@@ -1,6 +1,4 @@
 import pytest
-from pathlib import Path
-from rich.live import Live
 
 from idc_index import IDCClient
 from imgnet.collections.store import IndexedDatasets

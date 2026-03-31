@@ -15,7 +15,7 @@ from imgnet.loggers import logger, tqdm_logging_redirect
 from imgnet.utils import RemoteArchive, get_idc_client
 
 
-class DownloadHuggingFace(BaseDownloader):
+class HuggingFaceDownloader(BaseDownloader):
     def __init__(self, repo_id: str) -> None:
         self.repo_id = repo_id
 
@@ -28,8 +28,10 @@ class DownloadHuggingFace(BaseDownloader):
         """Download from Hugging Face. Here instance_ids is a list of filenames to download."""
 
         if instance_ids is None:
+            logger.info(f"Downloading all instances from Hugging Face repository {self.repo_id}")
             files_to_download = self.members
         else:
+            logger.info(f"Downloading {len(instance_ids)} instances from Hugging Face repository {self.repo_id}")
             remaining = set(instance_ids)
             files_to_download = []
 
@@ -96,7 +98,7 @@ class DownloadHuggingFace(BaseDownloader):
         return [sibling.rfilename for sibling in siblings]
 
 
-class DownloadZenodo(BaseDownloader):
+class ZenodoDownloader(BaseDownloader):
     def __init__(self, record_id: str) -> None:
         self.record_id = record_id
 
@@ -112,7 +114,9 @@ class DownloadZenodo(BaseDownloader):
 
         if instance_ids is None:
             files_to_download = files
+            logger.info(f"Downloading all files from Zenodo record {self.record_id}")
         else:
+            logger.info(f"Downloading {len(instance_ids)} files from Zenodo record {self.record_id}")
             remaining = set(instance_ids)
             files_to_download = []
 
@@ -135,7 +139,7 @@ class DownloadZenodo(BaseDownloader):
 
             if remaining:
                 msg = f"Instance IDs {sorted(remaining)} not found in Zenodo record {self.record_id}"
-                raise logger.warning(msg)
+                logger.warning(msg)
 
         for file_info in files_to_download:
             _download_http_file(
@@ -177,7 +181,7 @@ class DownloadZenodo(BaseDownloader):
         return list(set(updated_file_names))
 
 
-class DownloadDropbox(BaseDownloader):
+class DropboxDownloader(BaseDownloader):
     def __init__(self, url: str) -> None:
         self.url = url.replace("dl=0", "dl=1").replace(
             "www.dropbox.com", "dl.dropboxusercontent.com"
@@ -194,6 +198,7 @@ class DownloadDropbox(BaseDownloader):
         file_name = Path(urlparse(self.url).path).name
 
         if instance_ids is None:
+            logger.info(f"Downloading all files from Dropbox source {self.url}")
             _download_http_file(
                 url=self.url,
                 out_file=output_path / file_name,
@@ -202,6 +207,7 @@ class DownloadDropbox(BaseDownloader):
             return None
 
         remaining = set(instance_ids)
+        logger.info(f"Downloading {len(remaining)} files from Dropbox source {self.url}")
         if file_name in remaining:
             _download_http_file(
                 url=self.url,
@@ -239,7 +245,7 @@ class DownloadDropbox(BaseDownloader):
         return [file_name.name]
 
 
-class DownloadS3(BaseDownloader):
+class S3Downloader(BaseDownloader):
     def __init__(self, bucket_name: str) -> None:
         self.bucket_name = bucket_name
         self.fs = s3fs.S3FileSystem(anon=True)
@@ -322,7 +328,7 @@ class DownloadS3(BaseDownloader):
         return list(expanded_members)
 
 
-class DownloadIDC(BaseDownloader):
+class IDCDownloader(BaseDownloader):
     def __init__(self, collection_id: str) -> None:
         self.collection_id = (
             collection_id.lower().replace(" ", "_").replace("-", "_")
@@ -344,6 +350,9 @@ class DownloadIDC(BaseDownloader):
                 msg = f"Instance IDs {instance_ids} not found in IDC collection {self.collection_id}"
                 raise ValueError(msg)
             series_uids = instance_ids
+        else:
+            logger.warning(f"No instance IDs provided, downloading all series from IDC collection {self.collection_id}")
+            series_uids = self.members
 
         output_path.mkdir(parents=True, exist_ok=True)
         with tqdm_logging_redirect():

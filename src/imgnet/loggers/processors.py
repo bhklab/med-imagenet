@@ -4,7 +4,6 @@ import datetime
 from pathlib import Path
 from typing import Optional
 
-import pytz
 from structlog.types import EventDict
 
 
@@ -124,9 +123,9 @@ class CallPrettifier:
         return event_dict
 
 
-class ESTTimeStamper:
+class TimeStamper:
     """
-    A processor to add a timestamp in Eastern Standard Time to the event dictionary.
+    A processor to add a local-timezone timestamp to the event dictionary.
 
     Parameters
     ----------
@@ -135,25 +134,25 @@ class ESTTimeStamper:
 
     Example
     -------
-    >>> est_stamper = ESTTimeStamper()
+    >>> stamper = TimeStamper()
     >>> event_dict = {}
-    >>> est_stamper(None, None, event_dict)
+    >>> stamper(None, None, event_dict)  # doctest: +SKIP
     {'timestamp': '2023-10-01T12:00:00-0400'}
 
     format for just time:
-    >>> est_stamper = ESTTimeStamper(fmt="%H:%M:%S")
+    >>> stamper = TimeStamper(fmt="%H:%M:%S")
     """
 
     def __init__(self, fmt: str = "%Y-%m-%dT%H:%M:%S%z") -> None:
         self.fmt = fmt
-        self.est = pytz.timezone("US/Eastern")
+        self.tz = datetime.datetime.now().astimezone().tzinfo
         self._last_timestamp: str | None = None
 
     def __call__(
         self, _: object, __: object, event_dict: EventDict
     ) -> EventDict:
         """
-        Process the event dictionary to add a timestamp in Eastern Standard Time,
+        Process the event dictionary to add a timestamp in the local timezone,
         avoiding repetition if the timestamp matches the previous one.
 
         Parameters
@@ -175,14 +174,14 @@ class ESTTimeStamper:
             msg = "event_dict must be a dictionary"
             raise TypeError(msg)
 
-        now = datetime.datetime.now(self.est)
+        now = datetime.datetime.now(self.tz)
         current_timestamp = now.strftime(self.fmt)
 
         if current_timestamp != self._last_timestamp:
             event_dict["timestamp"] = current_timestamp
             self._last_timestamp = current_timestamp
         else:
-            # the string should be the same LENGTH of chracters
+            # the string should be the same LENGTH of characters
             # so that the log file is not corrupted
             event_dict["timestamp"] = " " * len(current_timestamp)
 

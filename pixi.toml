@@ -10,17 +10,13 @@ platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 
 [dependencies]
 python = ">=3.10,<3.14"
-pytest = ">=8.4.1,<9"
-mypy = ">=1.17.1,<2"
-types-pytz = ">=2025.2.0.20250809,<2026"
-rich = ">=14.1.0,<15"
 
 [pypi-dependencies]
 med-imagenet = { path = ".", editable = true }
 
 [environments]
 docs = { features = ["docs"] }
-dev = { features = ["dev", "docs", "lint", "quality", "test"] }
+dev = { features = ["dev", "docs", "quality", "test"] }
 test = { features = ["test", "quality"] }
 py310 = { features = ["py310", "test"], no-default-feature = true }
 py311 = { features = ["py311", "test"], no-default-feature = true }
@@ -102,31 +98,6 @@ cmd = [
 ]
 inputs = ["src", "tests"]
 description = "Run pytest"
-
-
-################################################################################
-# lint
-################################################################################
-
-[feature.lint.dependencies]
-ruff = "*"
-pre-commit = ">=3.7.1,<4"
-pre-commit-hooks = ">=4.6.0,<5"
-markdownlint-cli = ">=0.42.0,<0.43"
-
-[feature.lint.tasks]
-pre-commit-install.description = "Install pre-commit hooks"
-pre-commit-install.cmd = "pre-commit install --install-hooks -t=pre-commit -t=pre-push"
-pre-commit-install.inputs = [".pre-commit-config.yaml"]
-
-mdlint.description = "Run markdownlint"
-mdlint.cmd = "markdownlint -c .markdownlint.json docs/*"
-mdlint.inputs = ["docs/*", ".markdownlint.json", ".markdownlintignore"]
-mdlint.depends-on = ["pre-commit-install"]
-
-lint.description = "Run pre-commit hooks"
-lint.cmd = "pre-commit run --all-files --hook-stage=manual"
-lint.depends-on = ["pre-commit-install"]
 
 ############################################## QUALITY ###############################################
 # Quality includes linting, type checking, and formatting

@@ -11,8 +11,8 @@ from structlog.typing import Processor
 
 from .processors import (
     CallPrettifier,
-    ESTTimeStamper,
     PathPrettifier,
+    TimeStamper,
 )
 
 VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
@@ -72,7 +72,7 @@ class LoggingManager:
                 "console": {
                     "()": structlog.stdlib.ProcessorFormatter,
                     "processors": [
-                        ESTTimeStamper(fmt="%H:%M:%S"),
+                        TimeStamper(fmt="%H:%M:%S"),
                         CallPrettifier(concise=True),
                         structlog.stdlib.ProcessorFormatter.remove_processors_meta,
                         structlog.dev.ConsoleRenderer(
@@ -89,7 +89,7 @@ class LoggingManager:
                 "json": {
                     "()": structlog.stdlib.ProcessorFormatter,
                     "processors": [
-                        ESTTimeStamper(),
+                        TimeStamper(),
                         CallPrettifier(concise=False),
                         structlog.stdlib.ProcessorFormatter.remove_processors_meta,
                         structlog.processors.dict_tracebacks,

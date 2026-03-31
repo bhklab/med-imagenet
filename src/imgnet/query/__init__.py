@@ -11,9 +11,6 @@ from imgnet.query.models import (
 )
 from imgnet.query.parser import SUPPORTED_COMPARISONS, parse_rule
 
-_SUPPORTED_COMPARISONS = SUPPORTED_COMPARISONS
-_parse_rule = parse_rule
-
 __all__ = [
     "Rule",
     "ValidQuery",
@@ -24,6 +21,6 @@ __all__ = [
     "CollectionsValidationError",
     "RulesValidationError",
     "RulesValidationParsingError",
-    "_SUPPORTED_COMPARISONS",
-    "_parse_rule",
+    "SUPPORTED_COMPARISONS",
+    "parse_rule",
 ]

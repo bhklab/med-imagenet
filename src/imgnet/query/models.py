@@ -1,16 +1,20 @@
+from __future__ import annotations
+
 import base64
 import operator
 import re
 import zlib
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import msgpack
 import pandas as pd
 from pydantic import BaseModel, Field, field_validator
 
 from imgnet.collections.source import FileType
-from imgnet.collections.store import IndexedDatasets
 from imgnet.loggers import logger
+
+if TYPE_CHECKING:
+    from imgnet.collections.store import IndexedDatasets
 
 NUMERIC_OPS = {
     ">": operator.gt,

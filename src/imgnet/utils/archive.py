@@ -104,9 +104,6 @@ class RemoteArchive:
         # Only extract a RemoteArcive that looks like "s3://msd-for-monai/Task01_BrainTumour.tar".
         if filenames:
             filenames_to_extract = self.check_tar_filenames(filenames)
-            logger.debug(
-                f"Filenames to extract: {filenames_to_extract} from {filenames}"
-            )
             if len(filenames_to_extract) == 0:
                 return []
             filenames = filenames_to_extract
@@ -137,8 +134,6 @@ class RemoteArchive:
         filenames: list[str] | None = None,
         output_path: Path | None = None,
     ) -> list[str]:
-        if filenames is None:
-            filenames = []
         if self.archive_extension == ".zip":
             return self._extract_zip(filenames, output_path)
         if self.archive_extension == ".tar":

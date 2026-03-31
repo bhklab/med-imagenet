@@ -10,7 +10,7 @@ from imgnet.loggers import logger
 
 @click.command(no_args_is_help=True)
 @click.option(
-    "--output_path",
+    "--output-dir",
     "-o",
     type=click.Path(
         exists=False,
@@ -23,7 +23,7 @@ from imgnet.loggers import logger
     help="Path to the output directory."
 )
 @click.option(
-    "--input_path",
+    "--input-path",
     "-i",
     type=click.Path(
         exists=True,
@@ -71,7 +71,7 @@ from imgnet.loggers import logger
 
 
 def query(
-    output_path: Path | None,
+    output_dir: Path | None,
     input_path: Path | None,
     collections: str | list[str],
     modalities: str | list[str],
@@ -84,8 +84,8 @@ def query(
     to the output directory. Pipe the output into `imgnet download` to
     retrieve the matched series.
     """
-    if output_path is not None:
-        output_path = Path(output_path)
+    if output_dir is not None:
+        output_path = Path(output_dir)
     else:
         output_path = Path.cwd() / "query_results"
         logger.warning(f"No output path provided, using: {output_path}")

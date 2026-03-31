@@ -1,13 +1,12 @@
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
 
-class BaseDownloader:
+class BaseDownloader(ABC):
     """Base class for all downloaders."""
 
-    def __init__(self) -> None:
-        pass
-
+    @abstractmethod
     def download(
         self,
         output_path: Path,
@@ -15,14 +14,16 @@ class BaseDownloader:
         **kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Download the instances from the source."""
-        raise NotImplementedError
+        ...
 
     @property
+    @abstractmethod
     def size(self) -> float:
         """Return the size of the instances in GB."""
-        raise NotImplementedError
+        ...
 
     @property
+    @abstractmethod
     def members(self) -> list[str]:
         """Return the members of the source."""
-        raise NotImplementedError
+        ...

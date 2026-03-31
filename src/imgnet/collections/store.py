@@ -23,11 +23,11 @@ from imgnet.collections.utils import (
 )
 from imgnet.download.base import BaseDownloader
 from imgnet.download.downloaders import (
-    DownloadDropbox,
-    DownloadHuggingFace,
-    DownloadIDC,
-    DownloadS3,
-    DownloadZenodo,
+    DropboxDownloader,
+    HuggingFaceDownloader,
+    IDCDownloader,
+    S3Downloader,
+    ZenodoDownloader,
 )
 from imgnet.loggers import logger, tqdm_logging_redirect
 
@@ -83,7 +83,7 @@ class IndexedDatasets:
 
             if path.exists():
                 shutil.rmtree(path)
-                logger.debug(
+                logger.warning(
                     "Deleted existing indexed datasets directory at %s.",
                     path.resolve(),
                 )
@@ -240,15 +240,15 @@ class Collection:
     def downloader(self) -> BaseDownloader:
         match self.source_config:
             case TCIASource():
-                return DownloadIDC(self.name)
+                return IDCDownloader(self.name)
             case S3Source():
-                return DownloadS3(self.source_config.bucket_name)
+                return S3Downloader(self.source_config.bucket_name)
             case ZenodoSource():
-                return DownloadZenodo(self.source_config.record_id)
+                return ZenodoDownloader(self.source_config.record_id)
             case HuggingFaceSource():
-                return DownloadHuggingFace(self.source_config.repo_id)
+                return HuggingFaceDownloader(self.source_config.repo_id)
             case DropboxSource():
-                return DownloadDropbox(self.source_config.url)
+                return DropboxDownloader(self.source_config.url)
 
     @functools.cached_property
     def summary(self) -> dict:
