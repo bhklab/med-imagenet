@@ -91,7 +91,7 @@ class IndexedDatasets:
             download_dir = path.parent
             download_dir.mkdir(parents=True, exist_ok=True)
 
-            downloader = DownloadHuggingFace(repo_id)
+            downloader = HuggingFaceDownloader(repo_id)
             downloader.download(
                 output_path=download_dir,
                 ignore_patterns=[".git*"],
