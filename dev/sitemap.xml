@@ -2,138 +2,138 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/ImagingFormats/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/ImagingFormats/DICOM/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/ImagingFormats/nifti/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/Introduction/Challenges/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/Introduction/EthicalConsiderations/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/Introduction/EvaluationValidation/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/Introduction/ImageNet/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/Introduction/MedImageTools_Specification/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/Overview/AI_Applications/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/Overview/Methodology/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/Overview/ProjectJustification/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/Overview/ResearchObjectivesAims/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/devnotes/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/devnotes/MVP-notes/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/devnotes/Med-ImageDB/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/devnotes/UserStoriesAndArchitecture/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/devnotes/Inspiration/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/archive/devnotes/Inspiration/amid/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/cli/imgnet/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/home/introduction/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/home/methodology/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/reference/imgnet/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/reference/loggers/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/reference/utils/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/reference/collections/source/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/reference/collections/store/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/reference/collections/utils/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/reference/download/base/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/reference/download/downloaders/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/reference/download/utils/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/reference/query/engine/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/reference/query/models/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/reference/query/parser/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
     <url>
          <loc>https://bhklab.github.io/med-imagenet/dev/usage/</loc>
-         <lastmod>2026-04-01</lastmod>
+         <lastmod>2026-04-07</lastmod>
     </url>
 </urlset>
