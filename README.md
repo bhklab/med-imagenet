@@ -1,31 +1,53 @@
-# Med-ImageNet: Open-source Medical Imaging Data Curation for Large-scale AI
+# Med-ImageNet: A Standardized Resource for AI-Ready Oncology Imaging
 
-<!--intro-start-->
+## Core Features
 
-## Project Description
+Med-ImageNet is an open-source platform that transforms heterogeneous
+cancer imaging collections into harmonized, AI-ready resources for
+oncology research. It provides tools to **query**, **download**, and
+**preprocess** medical imaging datasets from public and user-provided
+sources through a unified Python interface.
 
-Med-ImageNet is a transformative framework aiming to facilitate **access** to
-**standardized** medical imaging dataset for cancer research and clinical AI applications.
+![Index](docs/figures/overview.png)
 
-## Key Information
+## Platform Components
 
-- 🖼 **Project Title**: Med-ImageNet
+The platform comprises three integrated components:
 
-- 🧬 **Objective**:  Standardize and curate oncology imaging data to
-**support AI-driven cancer research,** focusing on **auto-segmentation**,
-**treatment planning**, and **monitoring**.
+1. **Med-ImageDB** -- Dataset indexing, query API, and secure image and
+   metadata retrieval across all supported collections. The index can be found
+   [here](https://huggingface.co/datasets/bhklab2026/med-image-index).
 
-- 🌐 **Significance**: Tackles the lack of standardized healthcare imaging data,
-making data **FAIR (Findable, Accessible, Interoperable, and Reusable)**
-for machine learning applications.
+2. **Med-ImageTools** --
+   Standardized preprocessing including DICOM ingestion, voxel harmonization,
+   intensity normalization, and metadata alignment. The tools can be found [here](https://github.com/bhklab/med-imagetools).
 
-- 💻 **Innovations**: Develops MedImage-Tools for data standardization,
-providing a comprehensive, open-source dataset for cancer imaging.
+3. **Med-ImageNet Repository** -- Unifies these modules into a scalable and
+   reproducible data compendium supporting both raw data access and AI-ready
+   outputs (e.g., NIfTI format) for deep learning integration.
 
-- 🌍 **Equity and Inclusion**: Prioritizes data inclusivity by
-representing diverse populations in cancer research.
+![Architecture](docs/figures/architecture.png)
 
-- 🤝 **Collaboration**: Engages with the AI and medical communities to
-foster collaboration and innovation in cancer research.
+## Installing Med-ImageNet
 
-<!--intro-end-->
+```console
+pip install med-imagenet
+```
+
+```console
+imgnet --help
+```
+
+## Key Capabilities
+
+- Queries across **all supported collections** with associated metadata
+- Establishes explicit links between **paired imaging modalities**
+  (e.g., CT with RTSTRUCTs)
+- Query and request datasets based on **imaging region** and **imaging modality**
+- Downloads from TCIA/IDC, S3, Dropbox, Zenodo, and HuggingFace sources
+- Processes raw DICOM files to generate **AI-ready NIfTI outputs**,
+  tabular metadata files, and dataset summaries
+
+## License
+
+This project uses the following license: [MIT License](https://github.com/bhklab/med-imagenet/blob/main/LICENSE)

@@ -1,0 +1,129 @@
+{
+  "$defs": {
+    "Rule": {
+      "description": "Comparison rule between one DICOM tag and a value or list of values.",
+      "properties": {
+        "tag": {
+          "description": "The DICOM tag the rule applies to.",
+          "title": "Tag",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "description": "The value to compare against.",
+          "title": "Value"
+        },
+        "comparison": {
+          "description": "The comparison type. `==`/`!=` interpret the comparison value as regex.",
+          "title": "Comparison",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tag",
+        "value",
+        "comparison"
+      ],
+      "title": "Rule",
+      "type": "object"
+    }
+  },
+  "description": "Pydantic model representing a Med-ImageNet query.",
+  "properties": {
+    "collections": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ],
+      "default": "all",
+      "description": "The collections to query",
+      "examples": [
+        "all",
+        "4D-Lung",
+        [
+          "4D-Lung",
+          "RADCURE"
+        ]
+      ],
+      "title": "Collections"
+    },
+    "modalities": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ],
+      "default": "all",
+      "description": "The modalities to query",
+      "examples": [
+        "all",
+        "MR,RTSTRUCT",
+        [
+          "MR,RTSTRUCT",
+          "CT,RTSTRUCT"
+        ]
+      ],
+      "title": "Modalities"
+    },
+    "rules": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Rule"
+              },
+              {
+                "items": {
+                  "$ref": "#/$defs/Rule"
+                },
+                "type": "array"
+              }
+            ]
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The query filter rules, optionally grouped by modality",
+      "examples": [
+        {
+          "MR": [
+            "ImageType=='PRIMARY'",
+            "PixelPaddingValue == 1"
+          ],
+          "RTSTRUCT": "ROINames == ['lung', 'lung.*']"
+        }
+      ],
+      "title": "Rules"
+    }
+  },
+  "title": "ValidQuery",
+  "type": "object"
+}
