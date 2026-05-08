@@ -1,0 +1,1 @@
+::: imgnet.query.rule
