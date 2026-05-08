@@ -1,18 +1,20 @@
 {
-  "collections": "4D-Lung",
-  "modalities": [
-    "CT,RTSTRUCT"
-  ],
-  "rules": {
-    "CT": {
+  "collections": ["4D-Lung"],
+  "modalities": ["CT", "RTSTRUCT"],
+  "rules": [
+    {
+      "kind": "condition",
+      "modality": "CT",
       "tag": "SeriesInstanceUID",
       "value": "1.3.6.1.4.1.14519.5.2.1.6834.5010.102533678118509892496905762069",
       "comparison": "=="
     },
-    "RTSTRUCT": {
+    {
+      "kind": "condition",
+      "modality": "RTSTRUCT",
       "tag": "Modality",
       "value": "CT",
       "comparison": "=="
     }
-  }
+  ]
 }

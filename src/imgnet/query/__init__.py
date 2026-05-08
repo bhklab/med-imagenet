@@ -1,26 +1,11 @@
-from imgnet.query.models import (
-    CollectionsValidationError,
-    InvalidComparisonError,
-    ModalitiesValidationError,
-    Rule,
-    RuleError,
-    RulesValidationError,
-    RulesValidationParsingError,
-    ValidQuery,
-    ValidQueryError,
-)
-from imgnet.query.parser import SUPPORTED_COMPARISONS, parse_rule
+from imgnet.query.rule import parse_rule_node
+from imgnet.query.valid_query import Rule, ValidQuery
+
+SUPPORTED_COMPARISONS = (">", "<", ">=", "<=", "==", "!=")
 
 __all__ = [
     "Rule",
     "ValidQuery",
-    "RuleError",
-    "InvalidComparisonError",
-    "ValidQueryError",
-    "ModalitiesValidationError",
-    "CollectionsValidationError",
-    "RulesValidationError",
-    "RulesValidationParsingError",
     "SUPPORTED_COMPARISONS",
-    "parse_rule",
+    "parse_rule_node",
 ]

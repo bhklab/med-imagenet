@@ -5,7 +5,6 @@ from urllib.parse import urlparse
 import requests
 import s3fs
 from huggingface_hub import hf_hub_url, snapshot_download
-from huggingface_hub.utils import disable_progress_bars, enable_progress_bars
 from tqdm import tqdm
 from tqdm.auto import tqdm as _tqdm
 
@@ -28,10 +27,14 @@ class HuggingFaceDownloader(BaseDownloader):
         """Download from Hugging Face. Here instance_ids is a list of filenames to download."""
 
         if instance_ids is None:
-            logger.info(f"Downloading all instances from Hugging Face repository {self.repo_id}")
+            logger.info(
+                f"Downloading all instances from Hugging Face repository {self.repo_id}"
+            )
             files_to_download = self.members
         else:
-            logger.info(f"Downloading {len(instance_ids)} instances from Hugging Face repository {self.repo_id}")
+            logger.info(
+                f"Downloading {len(instance_ids)} instances from Hugging Face repository {self.repo_id}"
+            )
             remaining = set(instance_ids)
             files_to_download = []
 
@@ -61,19 +64,15 @@ class HuggingFaceDownloader(BaseDownloader):
                 logger.warning(msg)
 
         if len(files_to_download) > 0:
-            disable_progress_bars()
-            try:
-                with tqdm_logging_redirect():
-                    snapshot_download(
-                        repo_id=self.repo_id,
-                        local_dir=output_path,
-                        tqdm_class=_tqdm,
-                        allow_patterns=files_to_download,
-                        repo_type="dataset",
-                        **kwargs,
-                    )
-            finally:
-                enable_progress_bars()
+            with tqdm_logging_redirect():                    
+                snapshot_download(
+                    repo_id=self.repo_id,
+                    local_dir=output_path,
+                    tqdm_class=_tqdm,
+                    allow_patterns=files_to_download,
+                    repo_type="dataset",
+                    **kwargs,
+                )
 
     @property
     def size(self) -> float:
@@ -114,9 +113,13 @@ class ZenodoDownloader(BaseDownloader):
 
         if instance_ids is None:
             files_to_download = files
-            logger.info(f"Downloading all files from Zenodo record {self.record_id}")
+            logger.info(
+                f"Downloading all files from Zenodo record {self.record_id}"
+            )
         else:
-            logger.info(f"Downloading {len(instance_ids)} files from Zenodo record {self.record_id}")
+            logger.info(
+                f"Downloading {len(instance_ids)} files from Zenodo record {self.record_id}"
+            )
             remaining = set(instance_ids)
             files_to_download = []
 
@@ -198,7 +201,9 @@ class DropboxDownloader(BaseDownloader):
         file_name = Path(urlparse(self.url).path).name
 
         if instance_ids is None:
-            logger.info(f"Downloading all files from Dropbox source {self.url}")
+            logger.info(
+                f"Downloading all files from Dropbox source {self.url}"
+            )
             _download_http_file(
                 url=self.url,
                 out_file=output_path / file_name,
@@ -207,7 +212,9 @@ class DropboxDownloader(BaseDownloader):
             return None
 
         remaining = set(instance_ids)
-        logger.info(f"Downloading {len(remaining)} files from Dropbox source {self.url}")
+        logger.info(
+            f"Downloading {len(remaining)} files from Dropbox source {self.url}"
+        )
         if file_name in remaining:
             _download_http_file(
                 url=self.url,
@@ -289,9 +296,9 @@ class S3Downloader(BaseDownloader):
             size = self.fs.info(file_path)["size"]
             out_file = output_path / Path(file_path).name
 
-            with tqdm(
+            with tqdm(  # noqa: SIM117
                 total=size, unit="B", unit_scale=True, desc=out_file.name
-            ) as pbar:  # noqa: SIM117
+            ) as pbar:
                 with self.fs.open(file_path, "rb") as remote:
                     with out_file.open("wb") as local:
                         while True:
@@ -351,7 +358,9 @@ class IDCDownloader(BaseDownloader):
                 raise ValueError(msg)
             series_uids = instance_ids
         else:
-            logger.warning(f"No instance IDs provided, downloading all series from IDC collection {self.collection_id}")
+            logger.warning(
+                f"No instance IDs provided, downloading all series from IDC collection {self.collection_id}"
+            )
             series_uids = self.members
 
         output_path.mkdir(parents=True, exist_ok=True)
@@ -381,6 +390,6 @@ class IDCDownloader(BaseDownloader):
         where collection_id = '{self.collection_id}'
         """
         return cast(
-            list[str],
+            "list[str]",
             self.client.sql_query(query)["SeriesInstanceUID"].tolist(),
         )

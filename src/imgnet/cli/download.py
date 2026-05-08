@@ -67,9 +67,12 @@ def download(
             manifest = pd.read_csv(f)
         logger.info(f"Downloading from manifest file: {path}")
     else:
-        valid_query = ValidQuery.from_token(manifest_or_token)
-        manifest = valid_query.process(store)
-        logger.info(f"Downloading from query token: {manifest_or_token}")
+        # valid_query = ValidQuery.from_token(manifest_or_token)
+        # manifest = valid_query.process(store)
+        # logger.info(f"Downloading from query token: {manifest_or_token}")
+        logger.warning("Downloading from query token is not implemented yet.")
+        ctx.exit(1)
+        return
 
     if output_dir is not None:
         output_dir = Path(output_dir)

@@ -15,7 +15,7 @@ dependencies = [
     "idc-index >=0.11.10, <0.12",
     "s3fs >=2026.2.0, <2027",
     "platformdirs >=4, <5",
-    "huggingface_hub >=0.20, <1",
+    "huggingface_hub >=1, <2",
     "msgpack >=1.1.2, <2",
     "orjson >=3, <4",
     "click >=8.2.1, <9",
@@ -26,9 +26,43 @@ dependencies = [
     "requests >=2.32, <3",
     "fsspec >=2026.3.0, <2027",
     "pandas >=2.2.3, <3",
+    "pyarrow >=15, <23",
+    "lark >=1.3.1, <2",
+]
+
+[project.urls]
+Homepage = "https://github.com/bhklab/med-imagenet"
+Source = "https://github.com/bhklab/med-imagenet"
+Documentation = "https://bhklab.github.io/med-imagenet/dev"
+
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[tool.hatch.build]
+directory = "dist"
+
+[tool.hatch.build.targets.wheel]
+# Automatically discovers packages in `src/`
+packages = ["src/imgnet"]
+include = [
+    "pyproject.toml",
+    "README.md",
+    "src/**"
 ]
 
 
+[tool.semantic_release]
+version_variables = ["src/imgnet/__init__.py:__version__"]
+version_toml = ["pyproject.toml:project.version"]          # version location
+changelog_file = "CHANGELOG.md"                            # changelog file
+dist_path = "dist/"                                        # where to put dists
+upload_to_release = true                                   # auto-create GitHub release
+remove_dist = false                                        # don't remove dists
+patch_without_tag = true                                   # patch release by default
+
+[tool.semantic_release.branches.main]
+match = "(main)"
 
 [project.scripts]
 imgnet = "imgnet.cli.__main__:cli"

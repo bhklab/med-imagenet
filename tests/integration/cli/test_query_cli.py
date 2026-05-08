@@ -1,6 +1,5 @@
 """Integration tests for the imgnet query CLI."""
 
-import json
 import pandas as pd
 import pytest
 from click.testing import CliRunner
@@ -43,9 +42,13 @@ def test_query_cli_options(runner: CliRunner, tmp_path: Path):
             "-c",
             "4D-Lung",
             "-m",
-            "CT,RTSTRUCT",
+            "CT",
+            "-m",
+            "RTSTRUCT",
             "-r",
-            '{"CT": "SeriesInstanceUID == 1.3.6.1.4.1.14519.5.2.1.6834.5010.102533678118509892496905762069", "RTSTRUCT": "Modality == CT"}',
+            'CT(SeriesInstanceUID == "1.3.6.1.4.1.14519.5.2.1.6834.5010.102533678118509892496905762069")',
+            "-r",
+            "RTSTRUCT(Modality == CT)",
         ],
     )
     assert result.exit_code == 0, f"Query from cli failed: {result.output}"
@@ -53,34 +56,43 @@ def test_query_cli_options(runner: CliRunner, tmp_path: Path):
 
 
 @pytest.mark.parametrize(
-    "collections, modalities, rules, expected_series",
+    "collections, modality_args, rule_strings, expected_series",
     [
         (
             ["4D-Lung"],
-            "CT",
-            {"CT": "SeriesInstanceUID == 1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985"},
+            ["CT"],
+            [
+                'CT(SeriesInstanceUID == "1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985")',
+            ],
             ["1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985"],
         ),
         (
             ["4D-Lung", "Adrenal-ACC-Ki67-Seg"],
-            "CT",
-            {"CT": "SeriesInstanceUID == 1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985"},
+            ["CT"],
+            [
+                'CT(SeriesInstanceUID == "1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985")',
+            ],
             ["1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985"],
         ),
         (
             ["all"],
-            "CT",
-            {"CT": "SeriesInstanceUID == 1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985"},
+            ["CT"],
+            [
+                'CT(SeriesInstanceUID == "1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985")',
+            ],
             ["1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985"],
         ),
         (
-            ["all"],
-            "CT,RTSTRUCT",
-            {
-                "CT": "SeriesInstanceUID == 1.3.6.1.4.1.14519.5.2.1.6834.5010.102533678118509892496905762069",
-                "RTSTRUCT": "Modality == CT",
-            },
-            ["1.3.6.1.4.1.14519.5.2.1.6834.5010.102533678118509892496905762069"],
+            ["4D-Lung"],
+            ["CT", "RTSTRUCT"],
+            [
+                'CT(SeriesInstanceUID == "1.3.6.1.4.1.14519.5.2.1.6834.5010.102533678118509892496905762069")',
+                "RTSTRUCT(Modality == CT)",
+            ],
+            [
+                "1.3.6.1.4.1.14519.5.2.1.6834.5010.102533678118509892496905762069",
+                "2.25.333159918758866219135293004439433341598.1",
+            ],
         ),
     ],
 )
@@ -88,12 +100,16 @@ def test_query_cli_process(
     runner: CliRunner,
     tmp_path: Path,
     collections,
-    modalities,
-    rules,
+    modality_args,
+    rule_strings,
     expected_series,
 ):
     """Query via CLI returns expected SeriesInstanceUIDs (same scenarios as former test_query_process)."""
-    args = ["query", "-o", str(tmp_path), "-m", modalities, "-r", json.dumps(rules)]
+    args = ["query", "-o", str(tmp_path)]
+    for m in modality_args:
+        args.extend(["-m", m])
+    for r in rule_strings:
+        args.extend(["-r", r])
     if isinstance(collections, list):
         for c in collections:
             args.extend(["-c", c])
@@ -103,7 +119,7 @@ def test_query_cli_process(
     result = runner.invoke(cli, args)
     assert result.exit_code == 0, result.output
     df = pd.read_csv(tmp_path / "query_results.csv")
-    assert df["SeriesInstanceUID"].tolist() == expected_series
+    assert set(df["SeriesInstanceUID"].tolist()) == set(expected_series)
 
 
 def test_query_cli_invalid_rule_exits_nonzero(runner: CliRunner, tmp_path: Path):
@@ -119,7 +135,7 @@ def test_query_cli_invalid_rule_exits_nonzero(runner: CliRunner, tmp_path: Path)
             "-m",
             "CT",
             "-r",
-            '{"CT": "Invalid Rule"}',
+            "CT(not valid rule syntax @@)",
         ],
     )
     assert result.exit_code != 0

@@ -3,7 +3,7 @@ from pathlib import Path
 import json
 
 from imgnet.imgnet import ImgNet
-from imgnet.query import ValidQuery
+from imgnet.query import ValidQuery, parse_rule_node
 from imgnet.collections.store import IndexedDatasets
 from imgnet.collections.source import FileType
 from imgnet.loggers import logger
@@ -36,47 +36,48 @@ from imgnet.loggers import logger
     help="Path to a valid query json."
 )
 @click.option(
-    "--collections",
+    "--collection",
     "-c",
     type=str,
     multiple=True,
-    default = ["all"],
-    help = "List of collections to query, or 'all' to query every collection (example: `-c collection1 collection2`)"
+    default = None,
+    help = "Collection to query, or 'all' to query every collection (example: `-c 4D-Lung -c Adrenal-ACC-Ki67-Seg`)"
 )
 @click.option(
-    "--modalities",
+    "--modality",
     "-m",
     type=str,
     multiple=True,
-    default=['all'],
-    help="List of modality queries (example: `-m CT,RTSTRUCT CT,SEG`)"
+    default=None,
+    help="Modality to query (example: `-m CT -m RTSTRUCT -m SEG`)"
 )
 @click.option(
-    "--file_type",
+    "--file-type",
     "-ft",
     type=click.Choice(
-        ["all"] + [ft.value for ft in FileType], case_sensitive=False
+        [ft.value for ft in FileType], case_sensitive=False
     ),
     default=None,
     help="Restrict query to a specific file type "
-    "(e.g. 'dicom', 'nifti'). Use 'all' (default) for no restriction.",
+    "(e.g. 'dicom', 'nifti'). Default for no restriction.",
 )
 @click.option(
     "--rules",
     "-r",
     type=str,
     default=None,
-    help="JSON string of filter rules."
+    multiple=True,
+    help="filter rules."
 )
 
 
 def query(
     output_dir: Path | None,
     input_path: Path | None,
-    collections: str | list[str],
-    modalities: str | list[str],
+    collection: list[str],
+    modality: list[str],
     file_type: str | None,
-    rules: str,
+    rules: list[str] | None,
 ) -> None:
     """Query indexed datasets and save selected series for downstream use.
 
@@ -96,19 +97,14 @@ def query(
             valid_query = ValidQuery.model_validate_json(f.read())
         logger.info(f"Loaded ValidQuery from {input_path}.")
     else: 
-        if rules is not None:
-            rules = json.loads(rules)
-        if len(collections) == 1:
-            collections = collections[0]
-        elif isinstance(collections, tuple):
-            collections = list(collections)
-        if isinstance(modalities, tuple):
-            modalities = list(modalities)
+        collections = list(collection) if collection else None
+        modalities = list(modality) if modality else None
+        parsed_rules = [parse_rule_node(rule) for rule in rules] if rules else None
 
         kwargs: dict[str, object] = {
             "collections": collections,
             "modalities": modalities,
-            "rules": rules,
+            "rules": parsed_rules,
         }
         if file_type is not None:
             kwargs["file_type"] = file_type.lower()
@@ -116,10 +112,7 @@ def query(
         valid_query = ValidQuery(**kwargs)  # type: ignore[arg-type]
         logger.info(
             "Generated ValidQuery: \n"
-            f"collections: {collections}\n"
-            f"modalities: {modalities}\n"
-            f"file_type: {valid_query.file_type}\n"
-            f"rules: {rules}\n"
+            f"{valid_query.__repr__()}"
         )
     
     store = IndexedDatasets()
