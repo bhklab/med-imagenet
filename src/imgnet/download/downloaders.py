@@ -1,10 +1,10 @@
+import os
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlparse
 
 import requests
 import s3fs
-from huggingface_hub import hf_hub_url, snapshot_download
 from tqdm import tqdm
 from tqdm.auto import tqdm as _tqdm
 
@@ -12,6 +12,10 @@ from imgnet.download.base import BaseDownloader
 from imgnet.download.utils import _download_http_file
 from imgnet.loggers import logger, tqdm_logging_redirect
 from imgnet.utils import RemoteArchive, get_idc_client
+
+
+os.environ["HF_HUB_DISABLE_XET"] = "1"
+from huggingface_hub import hf_hub_url, snapshot_download
 
 
 class HuggingFaceDownloader(BaseDownloader):
