@@ -263,6 +263,7 @@ class Collection:
         table = scanner.to_table()
         return table.to_pandas()
 
+    @property
     def index(self) -> pd.DataFrame:
         """Full index for this collection (all modalities / partitions). Expensive for large corpora."""
         return self.read_index_rows(modalities=None)
