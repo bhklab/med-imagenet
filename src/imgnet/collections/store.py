@@ -1,10 +1,14 @@
 import functools
+import operator
 import shutil
+from collections.abc import Iterable
 from difflib import get_close_matches
 from pathlib import Path
+from typing import Any
 
 import orjson
 import pandas as pd
+import pyarrow.dataset as ds
 from tqdm import tqdm
 
 from imgnet.collections.source import (
@@ -71,7 +75,7 @@ class IndexedDatasets:
 
             repo_id = "bhklab2026/med-image-index"
             latest_commit = list_repo_commits(
-                repo_id=repo_id, repo_type="dataset"
+                repo_id=repo_id, repo_type="dataset",
             )[0].title
             logger.warning(
                 "Indexed datasets not found at %s or force_download is True. "
@@ -102,20 +106,16 @@ class IndexedDatasets:
         self._collection_cache: dict[str, "Collection"] = {}
 
     @property
-    def imgtools_path(self) -> Path:
-        return self.path / ".imgtools"
-
-    @property
     def summary_path(self) -> Path:
         return self.path / "collections_summary.json"
 
     @property
     def collections(self) -> list[str]:
-        """Collection names derived from subdirectories of ``.imgtools/``."""
+        """Collection names derived from subdirectories of ``indexed_datasets/``."""
         return sorted(
             folder.name
-            for folder in self.imgtools_path.iterdir()
-            if folder.is_dir()
+            for folder in self.path.iterdir()
+            if folder.is_dir() and (folder / "parquet").is_dir()
         )
 
     def get_collection(self, name: str) -> "Collection":
@@ -126,16 +126,12 @@ class IndexedDatasets:
             raise ValueError(error_message)
         if name not in self._collection_cache:
             self._collection_cache[name] = Collection(
-                name=name, path=self.imgtools_path / name
+                name=name, path=self.path / name
             )
         return self._collection_cache[name]
 
-    def crawl_db(self, collection: str) -> dict:
-        """Return the parsed ``crawl_db.json`` for *collection*."""
-        return self.get_collection(collection).crawl_db
-
     def index(self, collection: str) -> pd.DataFrame:
-        """Return the ``index.csv`` for *collection* as a DataFrame."""
+        """Return the full Parquet index for *collection* as a DataFrame (all partitions)."""
         return self.get_collection(collection).index
 
     def source_config(self, collection: str) -> SourceConfig:
@@ -194,33 +190,83 @@ class IndexedDatasets:
                 collection_db[collection] = self.get_collection(
                     collection
                 ).build_summary_entry()
-        return collection_db        
+        return collection_db
 
 
 class Collection:
     def __init__(self, name: str, path: Path) -> None:
         self.name = name
         self.path = path
-        self.indexed_datasets_path = path.parent.parent
+        # Parent of ``.../<collection>/`` is the indexed-datasets root (``collections_summary.json``).
+        self.indexed_datasets_path = path.parent
 
-    @functools.cached_property
+    @property
+    def parquet_root(self) -> Path:
+        """Root directory of the Hive-partitioned Parquet dataset (``.../<collection>/parquet``)."""
+        return self.path / "parquet"
+
+    @property
+    def _dataset(self) -> ds.Dataset:
+        root = self.parquet_root
+        if not root.is_dir():
+            msg = f"Collection {self.name!r} has no Parquet index directory at {root}"
+            raise FileNotFoundError(msg)
+        return ds.dataset(str(root), format="parquet", partitioning="hive")
+
+    def read_index_rows(
+        self,
+        modalities: list[str] | None = None,
+        *,
+        sample_ids: Iterable[Any] | None = None,
+        columns: list[str] | None = None,
+    ) -> pd.DataFrame:
+        """Load index rows from Parquet, optionally restricting Hive partitions via *modalities*.
+
+        When *modalities* is not ``None``, applies a dataset filter on ``Modality`` so
+        PyArrow can prune partition directories (e.g. ``Modality=CT``). Rows should
+        include a ``Modality`` column (not only a Hive partition path) so filters bind
+        to the file schema across engines.
+
+        When *sample_ids* is set, adds a ``SampleID`` membership filter (combined with
+        modality filters using logical AND). Row groups may still be skipped via Parquet
+        statistics when available.
+
+        Parameters
+        ----------
+        modalities
+            If set, only rows (and partitions) for these DICOM modalities are read.
+            An empty list reads nothing and returns an empty DataFrame.
+        sample_ids
+            If set, only rows whose ``SampleID`` is in this set are read.
+            An empty iterable yields an empty DataFrame.
+        columns
+            Optional column projection passed to the dataset scanner.
+        """
+        if modalities is not None and len(modalities) == 0:
+            return pd.DataFrame()
+
+        sid_list: list[Any] | None = None
+        if sample_ids is not None:
+            sid_list = list(sample_ids)
+            if len(sid_list) == 0:
+                return pd.DataFrame()
+
+        parts: list = []
+        if modalities is not None:
+            parts.append(ds.field("Modality").isin(modalities))
+        if sid_list is not None:
+            parts.append(ds.field("SampleID").isin(sid_list))
+
+        filt = functools.reduce(operator.and_, parts) if parts else None
+
+        scanner = self._dataset.scanner(filter=filt, columns=columns)
+        table = scanner.to_table()
+        return table.to_pandas()
+
+    @property
     def index(self) -> pd.DataFrame:
-        return pd.read_csv(self.path / "index.csv")
-
-    @functools.cached_property
-    def crawl_db(self) -> dict:
-        db_path = self.path / "crawl_db.json"
-        if not db_path.exists():
-            logger.warning(
-                f"Crawl db not found for collection {self.name}. Returning empty dictionary."
-            )
-            return {}
-        if self.file_type != FileType.DICOM:
-            logger.warning(
-                f"Crawl db not supported for collection {self.name} of type {self.file_type}. Returning empty dictionary."
-            )
-            return {}
-        return orjson.loads(db_path.read_bytes())
+        """Full index for this collection (all modalities / partitions). Expensive for large corpora."""
+        return self.read_index_rows(modalities=None)
 
     @functools.cached_property
     def source_config(self) -> SourceConfig:
@@ -284,64 +330,44 @@ class Collection:
         for modality in modalities:
             supported_tags[modality] = set()
 
-        index = self.index
         for modality in modalities:
             subset = (
-                index[index["Modality"] == modality]
+                self.read_index_rows([modality])
                 .dropna(axis=1, how="all")
                 .dropna()
             )
             supported_tags[modality].update(subset.columns.tolist())
 
-        if self.file_type == FileType.DICOM:
-            crawl_db = self.crawl_db
-            for modality in modalities:
-                for key in crawl_db:
-                    series = crawl_db[key][list(crawl_db[key].keys())[0]]
-                    if series["Modality"] == modality:
-                        supported_tags[modality].update(list(series.keys()))
-
-        return {
-            modality: sorted(list(tags))
-            for modality, tags in supported_tags.items()
-        }
+        return {modality: list(tags) for modality, tags in supported_tags.items()}
 
     def build_summary_entry(self) -> dict:
         """Build the summary dict for this collection (Modalities, BodyPartsExamined, Images, Size, etc.)."""
         summary = {
             "Modalities": set(),
             "BodyPartsExamined": set(),
-            "Images": len(self.index),
+            "Images": self._dataset.count_rows(),
             "Size": self.collection_size,
             "File Type": self.file_type.value.upper(),
             "Source": self.source_config.source.upper(),
         }
 
-        if self.file_type == FileType.NIFTI:
-            index = self.index
-            if "Modality" in index.columns:
-                summary["Modalities"] = (
-                    index["Modality"].dropna().unique().tolist()
-                )
-            else:
-                summary["Modalities"] = []
-            if "BodyPartExamined" in index.columns:
-                summary["BodyPartsExamined"] = (
-                    index["BodyPartExamined"].dropna().unique().tolist()
-                )
-            else:
-                summary["BodyPartsExamined"] = []
-        elif self.file_type == FileType.DICOM:
-            crawl_json = self.crawl_db
-            for _, value in crawl_json.items():
-                series = value[next(iter(value))]
-                if series.get("Modality"):
-                    summary["Modalities"].add(series["Modality"])  # type: ignore
-                if series.get("BodyPartExamined"):
-                    summary["BodyPartsExamined"].add(  # type: ignore
-                        series["BodyPartExamined"]
-                    )
-            for key, value in summary.items():
-                if isinstance(value, set):
-                    summary[key] = list(value)
+        names = self._dataset.schema.names
+        cols = [c for c in ("Modality", "BodyPartExamined") if c in names]
+        if not cols:
+            summary["Modalities"] = []
+            summary["BodyPartsExamined"] = []
+            return summary
+
+        narrow = self.read_index_rows(modalities=None, columns=cols)
+        if "Modality" in narrow.columns:
+            summary["Modalities"] = narrow["Modality"].dropna().unique().tolist()
+        else:
+            summary["Modalities"] = []
+        if "BodyPartExamined" in narrow.columns:
+            summary["BodyPartsExamined"] = (
+                narrow["BodyPartExamined"].dropna().unique().tolist()
+            )
+        else:
+            summary["BodyPartsExamined"] = []
+
         return summary

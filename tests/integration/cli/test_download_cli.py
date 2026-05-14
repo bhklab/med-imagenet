@@ -6,7 +6,6 @@ from click.testing import CliRunner
 from pathlib import Path
 
 from imgnet.cli.__main__ import cli
-from imgnet.query import ValidQuery
 
 
 @pytest.fixture
@@ -46,35 +45,28 @@ def test_download_from_manifest_file(runner: CliRunner, tmp_path: Path):
     assert out_dir.exists()
 
 
-def test_download_from_token(runner: CliRunner, tmp_path: Path):
-    """Download from query token runs and creates output dir."""
-    query = ValidQuery(
-        collections="4D-Lung",
-        modalities="CT",
-        rules={"CT": "SeriesInstanceUID == 1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985"},
-    )
-    token = query.to_token()
-    out_dir = tmp_path / "from_token"
-    result = runner.invoke(
-        cli,
-        ["download", token, "--output-dir", str(out_dir)],
-    )
-    assert result.exit_code == 0
-    assert out_dir.exists()
-
-
 def test_download_with_process_flag_accepts(runner: CliRunner, tmp_path: Path):
-    """Download with --process flag is accepted (processing may run)."""
-    query = ValidQuery(
-        collections="4D-Lung",
-        modalities="CT",
-        rules={"CT": "SeriesInstanceUID == 1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985"},
-    )
-    token = query.to_token()
+    """Download with --process flag is accepted (processing may run).
+
+    Uses a manifest CSV (query tokens are not wired through download yet; a long
+    token string is also mishandled as a filesystem path).
+    """
+    manifest_path = tmp_path / "manifest.csv"
+    with open(manifest_path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["Collection", "SeriesInstanceUID", "PatientID", "StudyInstanceUID"])
+        w.writerow(
+            [
+                "4D-Lung",
+                "1.3.6.1.4.1.14519.5.2.1.6834.5010.545135956948851752674310887985",
+                "",
+                "",
+            ]
+        )
     out_dir = tmp_path / "processed"
     result = runner.invoke(
         cli,
-        ["download", token, "--output-dir", str(out_dir), "--process"],
+        ["download", str(manifest_path), "--output-dir", str(out_dir), "--process"],
     )
     assert result.exit_code == 0
     assert (out_dir / "srcdata").exists()

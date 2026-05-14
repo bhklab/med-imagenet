@@ -26,7 +26,7 @@ The platform comprises three integrated components:
    reproducible data compendium supporting both raw data access and AI-ready
    outputs (e.g., NIfTI format) for deep learning integration.
 
-![Architecture](docs/figures/architecture.png)
+![Architecture](docs/figures/architecture.jpg)
 
 ## Installing Med-ImageNet
 

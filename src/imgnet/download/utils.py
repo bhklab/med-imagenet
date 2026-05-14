@@ -6,7 +6,9 @@ from tqdm import tqdm
 from urllib3.util.retry import Retry
 
 _TIMEOUT = (10, 30)  # (connect, read) in seconds
-_RETRY = Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+_RETRY = Retry(
+    total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504]
+)
 
 
 def _http_session() -> requests.Session:

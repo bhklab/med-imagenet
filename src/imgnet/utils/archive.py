@@ -52,7 +52,7 @@ class RemoteArchive:
         with fsspec.open(
             self.url, mode="rb", **storage_options
         ).open() as remote_file:
-            yield cast(IO[bytes], remote_file)
+            yield cast("IO[bytes]", remote_file)
 
     def _extract_zip(
         self,
@@ -108,7 +108,7 @@ class RemoteArchive:
                 return []
             filenames = filenames_to_extract
 
-        dest = output_path if output_path is not None else Path(".")
+        dest = output_path if output_path is not None else Path()
         extracted: list[str] = []
         with self._open_archive() as archive_obj:  # noqa: SIM117
             with tarfile.open(fileobj=archive_obj, mode="r|*") as tar_ref:
