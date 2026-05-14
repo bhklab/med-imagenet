@@ -1,8 +1,8 @@
 [workspace]
 name = "med-imagenet"
-version = "0.1.0"
-description = "Add a short description here"
-authors = ["Jermiah <jermiahjoseph98@gmail.com>"]
+version = "0.1.1"
+description = "A standardized resource for AI-ready oncology imaging"
+authors = ["Joshua Siraj <joshuasiraj@gmail.ca>", "Jermiah <jermiahjoseph98@gmail.com>", ]
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 
@@ -16,7 +16,7 @@ med-imagenet = { path = ".", editable = true }
 
 [environments]
 docs = { features = ["docs"] }
-dev = { features = ["dev", "docs", "quality", "test"] }
+dev = { features = ["dev", "docs", "quality", "test", "build"] }
 test = { features = ["test", "quality"] }
 publish = ["build", "release"] 
 py310 = { features = ["py310", "test"], no-default-feature = true }
@@ -137,7 +137,7 @@ hatch = "*"
 
 [feature.build.tasks]
 # Builds the package
-build = { cmd = [
+hatch-build = { cmd = [
   "hatch",
   "build",
   "--clean",
