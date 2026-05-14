@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://bhklab.github.io/med-imagenet/dev/reference/query/parser/">
+        <link rel="canonical" href="https://bhklab.github.io/med-imagenet/dev/reference/query/valid_query/">
       
       
-        <link rel="prev" href="../models/">
+        <link rel="prev" href="../rule/">
       
       
-        <link rel="next" href="../engine/">
+        <link rel="next" href="../../../usage/">
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
@@ -22,7 +22,7 @@
     
     
       
-        <title>Parser - Med-ImageNet</title>
+        <title>Valid query - Med-ImageNet</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#imgnet.query.parser" class="md-skip">
+        <a href="#imgnet.query.valid_query" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +118,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Parser
+              Valid query
             
           </span>
         </div>
@@ -729,7 +729,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../models/" class="md-nav__link">
+      <a href="../../../models.md" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -747,28 +747,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  <span class="md-ellipsis">
-    Parser
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../../parser.md" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -777,48 +759,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#imgnet.query.parser" class="md-nav__link">
-    <span class="md-ellipsis">
-      <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;parser
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label=" parser">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#imgnet.query.parser.parse_rule" class="md-nav__link">
-    <span class="md-ellipsis">
-      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;parse_rule
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -831,7 +771,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../engine/" class="md-nav__link">
+      <a href="../../../engine.md" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1171,19 +1111,19 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#imgnet.query.parser" class="md-nav__link">
+  <a href="#imgnet.query.valid_query" class="md-nav__link">
     <span class="md-ellipsis">
-      <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;parser
+      <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;valid_query
     </span>
   </a>
   
-    <nav class="md-nav" aria-label=" parser">
+    <nav class="md-nav" aria-label=" valid_query">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#imgnet.query.parser.parse_rule" class="md-nav__link">
+  <a href="#imgnet.query.valid_query.ValidQuery" class="md-nav__link">
     <span class="md-ellipsis">
-      <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;parse_rule
+      <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;ValidQuery
     </span>
   </a>
   
@@ -1212,17 +1152,17 @@
   
 
 
-  <h1>Parser</h1>
+  <h1>Valid query</h1>
 
 <div class="doc doc-object doc-module">
 
 
 
-<h2 id="imgnet.query.parser" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <span class="doc doc-object-name doc-module-name">parser</span>
+<h2 id="imgnet.query.valid_query" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <span class="doc doc-object-name doc-module-name">valid_query</span>
 
 
-<a href="#imgnet.query.parser" class="headerlink" title="Anchor link to this section for reference">#</a></h2>
+<a href="#imgnet.query.valid_query" class="headerlink" title="Anchor link to this section for reference">#</a></h2>
 
     <div class="doc doc-contents first">
 
@@ -1245,85 +1185,54 @@
 
 
 
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="imgnet.query.parser.parse_rule" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">parse_rule</span>
+<div class="doc doc-object doc-class">
 
 
-<a href="#imgnet.query.parser.parse_rule" class="headerlink" title="Anchor link to this section for reference">#</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">parse_rule</span><span class="p">(</span><span class="n"><span title="imgnet.query.parser.parse_rule(rule)">rule</span></span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="ImgNet (&lt;code&gt;imgnet&lt;/code&gt;)" href="../../imgnet/#imgnet">imgnet</a></span><span class="o">.</span><span class="n"><span title="imgnet.query">query</span></span><span class="o">.</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-module&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-module-name&quot;&gt;models&lt;/span&gt; (&lt;code&gt;imgnet.query.models&lt;/code&gt;)" href="../models/#imgnet.query.models">models</a></span><span class="o">.</span><span class="n"><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-class&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-class-name&quot;&gt;Rule&lt;/span&gt; (&lt;code&gt;imgnet.query.models.Rule&lt;/code&gt;)" href="../models/#imgnet.query.models.Rule">Rule</a></span>
-</span></code></pre></div>
+
+<h3 id="imgnet.query.valid_query.ValidQuery" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">ValidQuery</span>
+
+
+<a href="#imgnet.query.valid_query.ValidQuery" class="headerlink" title="Anchor link to this section for reference">#</a></h3>
+
 
     <div class="doc doc-contents ">
-
-        <p>Parse a rule string into a <code>Rule</code> instance.</p>
-<p>Accepted syntax:
-<code>'&lt;tag&gt; &lt;comparison&gt; &lt;value&gt;'</code>.</p>
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="pydantic">pydantic</span>.<span title="pydantic.BaseModel">BaseModel</span></code></p>
 
 
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>src/imgnet/query/parser.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-8"> 8</a></span>
-<span class="normal"><a href="#__codelineno-0-9"> 9</a></span>
-<span class="normal"><a href="#__codelineno-0-10">10</a></span>
-<span class="normal"><a href="#__codelineno-0-11">11</a></span>
-<span class="normal"><a href="#__codelineno-0-12">12</a></span>
-<span class="normal"><a href="#__codelineno-0-13">13</a></span>
-<span class="normal"><a href="#__codelineno-0-14">14</a></span>
-<span class="normal"><a href="#__codelineno-0-15">15</a></span>
-<span class="normal"><a href="#__codelineno-0-16">16</a></span>
-<span class="normal"><a href="#__codelineno-0-17">17</a></span>
-<span class="normal"><a href="#__codelineno-0-18">18</a></span>
-<span class="normal"><a href="#__codelineno-0-19">19</a></span>
-<span class="normal"><a href="#__codelineno-0-20">20</a></span>
-<span class="normal"><a href="#__codelineno-0-21">21</a></span>
-<span class="normal"><a href="#__codelineno-0-22">22</a></span>
-<span class="normal"><a href="#__codelineno-0-23">23</a></span>
-<span class="normal"><a href="#__codelineno-0-24">24</a></span>
-<span class="normal"><a href="#__codelineno-0-25">25</a></span>
-<span class="normal"><a href="#__codelineno-0-26">26</a></span>
-<span class="normal"><a href="#__codelineno-0-27">27</a></span>
-<span class="normal"><a href="#__codelineno-0-28">28</a></span>
-<span class="normal"><a href="#__codelineno-0-29">29</a></span>
-<span class="normal"><a href="#__codelineno-0-30">30</a></span>
-<span class="normal"><a href="#__codelineno-0-31">31</a></span>
-<span class="normal"><a href="#__codelineno-0-32">32</a></span>
-<span class="normal"><a href="#__codelineno-0-33">33</a></span>
-<span class="normal"><a href="#__codelineno-0-34">34</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="k">def</span><span class="w"> </span><span class="nf">parse_rule</span><span class="p">(</span><span class="n">rule</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Rule</span><span class="p">:</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Parse a rule string into a `Rule` instance.</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10"></a>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="sd">    Accepted syntax:</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12"></a><span class="sd">    ``&#39;&lt;tag&gt; &lt;comparison&gt; &lt;value&gt;&#39;``.</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13"></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14"></a>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15"></a>    <span class="n">rule_parts</span> <span class="o">=</span> <span class="n">rule</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16"></a>    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">rule_parts</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17"></a>        <span class="k">raise</span> <span class="n">RulesValidationParsingError</span><span class="p">(</span><span class="s2">&quot;Invalid rule syntax.&quot;</span><span class="p">)</span>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18"></a>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19"></a>    <span class="n">tag</span><span class="p">,</span> <span class="n">comparison</span><span class="p">,</span> <span class="n">raw_value</span> <span class="o">=</span> <span class="n">rule_parts</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20"></a>    <span class="k">if</span> <span class="n">comparison</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">SUPPORTED_COMPARISONS</span><span class="p">:</span>
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21"></a>        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22"></a>            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">comparison</span><span class="si">}</span><span class="s2"> is not a supported comparison type.&quot;</span>
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23"></a>            <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Supported comparison types: </span><span class="si">{</span><span class="n">SUPPORTED_COMPARISONS</span><span class="si">}</span><span class="s2">&quot;</span>
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24"></a>        <span class="p">)</span>
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25"></a>        <span class="k">raise</span> <span class="n">RulesValidationParsingError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26"></a>
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27"></a>    <span class="n">value</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="nb">str</span>
-</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28"></a>    <span class="k">if</span> <span class="n">raw_value</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;[&quot;</span><span class="p">):</span>
-</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29"></a>        <span class="n">matches</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;&quot;&quot;([&#39;&quot;])(.*?)\1&quot;&quot;&quot;</span><span class="p">,</span> <span class="n">raw_value</span><span class="p">)</span>
-</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30"></a>        <span class="n">value</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">matches</span><span class="p">]</span>
-</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31"></a>    <span class="k">else</span><span class="p">:</span>
-</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a>        <span class="n">value</span> <span class="o">=</span> <span class="n">raw_value</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;&#39;</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a>
-</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">return</span> <span class="n">Rule</span><span class="p">(</span><span class="n">tag</span><span class="o">=</span><span class="n">tag</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="n">comparison</span><span class="o">=</span><span class="n">comparison</span><span class="p">)</span>
-</span></code></pre></div></td></tr></table></div>
-            </details>
+
+        <p>Pydantic model representing a Med-ImageNet query.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
     </div>
 
 </div>
+
 
 
 
@@ -1354,7 +1263,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">April 7, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">May 14, 2026</span>
   </span>
 
     
@@ -1364,7 +1273,7 @@
     <span class="md-icon" title="Created">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">April 7, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date">May 14, 2026</span>
   </span>
 
     
@@ -1374,13 +1283,11 @@
   <span class="md-source-file__fact">
     <span class="md-icon" title="Contributors">
       
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 5.5A3.5 3.5 0 0 1 15.5 9a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 8.5 9 3.5 3.5 0 0 1 12 5.5M5 8c.56 0 1.08.15 1.53.42-.15 1.43.27 2.85 1.13 3.96C7.16 13.34 6.16 14 5 14a3 3 0 0 1-3-3 3 3 0 0 1 3-3m14 0a3 3 0 0 1 3 3 3 3 0 0 1-3 3c-1.16 0-2.16-.66-2.66-1.62a5.54 5.54 0 0 0 1.13-3.96c.45-.27.97-.42 1.53-.42M5.5 18.25c0-2.07 2.91-3.75 6.5-3.75s6.5 1.68 6.5 3.75V20h-13zM0 20v-1.5c0-1.39 1.89-2.56 4.45-2.9-.59.68-.95 1.62-.95 2.65V20zm24 0h-3.5v-1.75c0-1.03-.36-1.97-.95-2.65 2.56.34 4.45 1.51 4.45 2.9z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
       
     </span>
     <nav>
       
-        <a href="mailto:DKORDA@uwo.ca">Declan Michael Korda</a>, 
-        <a href="mailto:jermiahjoseph98@gmail.com">Jermiah Joseph</a>, 
         <a href="mailto:72413722+joshuasiraj@users.noreply.github.com">Joshua Siraj</a>
     </nav>
   </span>
@@ -1418,7 +1325,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../models/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Models">
+          <a href="../rule/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Rule">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1428,20 +1335,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Models
+                Rule
               </div>
             </div>
           </a>
         
         
           
-          <a href="../engine/" class="md-footer__link md-footer__link--next" aria-label="Next: Engine">
+          <a href="../../../usage/" class="md-footer__link md-footer__link--next" aria-label="Next: Getting Started">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Engine
+                Getting Started
               </div>
             </div>
             <div class="md-footer__button md-icon">

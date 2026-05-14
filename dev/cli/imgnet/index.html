@@ -815,7 +815,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/query/models/" class="md-nav__link">
+      <a href="../../models.md" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -836,7 +836,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/query/parser/" class="md-nav__link">
+      <a href="../../parser.md" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -857,7 +857,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/query/engine/" class="md-nav__link">
+      <a href="../../engine.md" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1512,27 +1512,27 @@ retrieve the matched series.</p>
 <td>None</td>
 </tr>
 <tr>
-<td><code>--collections</code>, <code>-c</code></td>
+<td><code>--collection</code>, <code>-c</code></td>
 <td>text</td>
-<td>List of collections to query, or 'all' to query every collection (example: <code>-c collection1 collection2</code>)</td>
-<td><code>['all']</code></td>
+<td>Collection to query, or 'all' to query every collection (example: <code>-c 4D-Lung -c Adrenal-ACC-Ki67-Seg</code>)</td>
+<td>None</td>
 </tr>
 <tr>
-<td><code>--modalities</code>, <code>-m</code></td>
+<td><code>--modality</code>, <code>-m</code></td>
 <td>text</td>
-<td>List of modality queries (example: <code>-m CT,RTSTRUCT CT,SEG</code>)</td>
-<td><code>['all']</code></td>
+<td>Modality to query (example: <code>-m CT -m RTSTRUCT -m SEG</code>)</td>
+<td>None</td>
 </tr>
 <tr>
-<td><code>--file_type</code>, <code>-ft</code></td>
-<td>choice (<code>all</code> &#x7C; <code>dicom</code> &#x7C; <code>nifti</code>)</td>
-<td>Restrict query to a specific file type (e.g. 'dicom', 'nifti'). Use 'all' (default) for no restriction.</td>
+<td><code>--file-type</code>, <code>-ft</code></td>
+<td>choice (<code>dicom</code> &#x7C; <code>nifti</code>)</td>
+<td>Restrict query to a specific file type (e.g. 'dicom', 'nifti'). Default for no restriction.</td>
 <td>None</td>
 </tr>
 <tr>
 <td><code>--rules</code>, <code>-r</code></td>
 <td>text</td>
-<td>JSON string of filter rules.</td>
+<td>filter rules.</td>
 <td>None</td>
 </tr>
 <tr>
