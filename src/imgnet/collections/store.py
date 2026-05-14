@@ -205,7 +205,7 @@ class Collection:
         """Root directory of the Hive-partitioned Parquet dataset (``.../<collection>/parquet``)."""
         return self.path / "parquet"
 
-    @functools.cached_property
+    @property
     def _dataset(self) -> ds.Dataset:
         root = self.parquet_root
         if not root.is_dir():
@@ -263,7 +263,6 @@ class Collection:
         table = scanner.to_table()
         return table.to_pandas()
 
-    @functools.cached_property
     def index(self) -> pd.DataFrame:
         """Full index for this collection (all modalities / partitions). Expensive for large corpora."""
         return self.read_index_rows(modalities=None)
