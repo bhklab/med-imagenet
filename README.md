@@ -50,4 +50,4 @@ imgnet --help
 
 ## License
 
-This project uses the following license: [MIT License](https://github.com/bhklab/med-imagenet/blob/main/LICENSE)
+This project uses the following license: [License](https://github.com/bhklab/med-imagenet/blob/main/LICENSE)
