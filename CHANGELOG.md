@@ -1,6 +1,13 @@
 # CHANGELOG
 
 
+## [0.2.1](https://github.com/bhklab/med-imagenet/compare/v0.2.0...v0.2.1) (2026-07-08)
+
+
+### Bug Fixes
+
+* re-implementing auto-release via release please and pypi publishing actions ([356ce98](https://github.com/bhklab/med-imagenet/commit/356ce98697d9cd63231d9c5f445f79ea6ac11c14))
+
 ## [0.2.0](https://github.com/bhklab/med-imagenet/compare/v0.1.1...v0.2.0) (2026-07-08)
 
 
