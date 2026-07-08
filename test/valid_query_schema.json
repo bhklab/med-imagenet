@@ -1,0 +1,226 @@
+{
+  "$defs": {
+    "BoolRule": {
+      "description": "Composite: AND / OR of two subtrees.",
+      "properties": {
+        "kind": {
+          "const": "bool",
+          "default": "bool",
+          "title": "Kind",
+          "type": "string"
+        },
+        "modality": {
+          "default": "",
+          "description": "The modality the rule applies to (filled after parse).",
+          "title": "Modality",
+          "type": "string"
+        },
+        "op": {
+          "enum": [
+            "AND",
+            "OR"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "left": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionRule"
+            },
+            {
+              "$ref": "#/$defs/BoolRule"
+            }
+          ],
+          "title": "Left"
+        },
+        "right": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConditionRule"
+            },
+            {
+              "$ref": "#/$defs/BoolRule"
+            }
+          ],
+          "title": "Right"
+        }
+      },
+      "required": [
+        "op",
+        "left",
+        "right"
+      ],
+      "title": "BoolRule",
+      "type": "object"
+    },
+    "ConditionRule": {
+      "description": "Leaf: one tag compared to a value.",
+      "properties": {
+        "kind": {
+          "const": "condition",
+          "default": "condition",
+          "title": "Kind",
+          "type": "string"
+        },
+        "modality": {
+          "default": "",
+          "description": "The modality the rule applies to (filled after parse).",
+          "title": "Modality",
+          "type": "string"
+        },
+        "tag": {
+          "description": "The metadata tag the rule applies to.",
+          "title": "Tag",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "description": "The value to compare against.",
+          "title": "Value"
+        },
+        "comparison": {
+          "description": "The comparison type. `==`/`!=` interpret the comparison value as regex. `>`/`<`/`>=`/`<=` interpret the comparison value as a numeric value.",
+          "enum": [
+            ">",
+            "<",
+            ">=",
+            "<=",
+            "==",
+            "!="
+          ],
+          "title": "Comparison",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tag",
+        "value",
+        "comparison"
+      ],
+      "title": "ConditionRule",
+      "type": "object"
+    },
+    "FileType": {
+      "enum": [
+        "dicom",
+        "nifti"
+      ],
+      "title": "FileType",
+      "type": "string"
+    }
+  },
+  "description": "Pydantic model representing a Med-ImageNet query.",
+  "properties": {
+    "collections": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The collections to query",
+      "examples": [
+        "all",
+        "4D-Lung",
+        [
+          "4D-Lung",
+          "RADCURE"
+        ]
+      ],
+      "title": "Collections"
+    },
+    "modalities": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The modalities to query",
+      "examples": [
+        "MR",
+        "RTSTRUCT",
+        [
+          "MR",
+          "RTSTRUCT"
+        ]
+      ],
+      "title": "Modalities"
+    },
+    "rules": {
+      "anyOf": [
+        {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "bool": "#/$defs/BoolRule",
+                "condition": "#/$defs/ConditionRule"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/ConditionRule"
+              },
+              {
+                "$ref": "#/$defs/BoolRule"
+              }
+            ]
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The query filter rules, optionally grouped by modality",
+      "examples": [
+        "MR(ImageType=='PRIMARY' AND PixelPaddingValue == 1)",
+        "RTSTRUCT(ROINames == ['lung', 'lung.*'])"
+      ],
+      "title": "Rules"
+    },
+    "file_type": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FileType"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The file type to query",
+      "examples": [
+        "dicom",
+        "nifti"
+      ]
+    }
+  },
+  "title": "ValidQuery",
+  "type": "object"
+}
