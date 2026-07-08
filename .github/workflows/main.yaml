@@ -116,4 +116,4 @@ jobs:
           HATCH_INDEX_AUTH: ${{ secrets.PYPI_API_TOKEN }}
           HATCH_INDEX_REPO: https://upload.pypi.org/legacy/
         run: |
-          pixi run ${{ env.PIXI_ENV }} publish-pypi
+          pixi run -e ${{ env.PIXI_ENV }} publish-pypi
