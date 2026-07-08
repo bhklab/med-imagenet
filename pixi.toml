@@ -158,5 +158,5 @@ publish-pypi = { cmd = [
 ], inputs = [
   "dist/*",
 ], depends-on = [
-  "build",
+  "hatch-build",
 ], description = "Publish to main PyPI" }
