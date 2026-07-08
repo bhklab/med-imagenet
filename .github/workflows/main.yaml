@@ -82,12 +82,10 @@ jobs:
           pull-requests: write
 
       needs:
-          - Unit-Tests
-          - Integration-Tests
-          - Linting
-          - Build-Docs
+          - Docs
+          - Tests
 
-      if: github.ref_name == 'main' || github.ref_name == 'development'
+      if: github.ref_name == 'main' || github.ref_name == 'DeclanKorda/Auto-Release'
 
       runs-on: ubuntu-latest
 
