@@ -64,6 +64,9 @@ patch_without_tag = true                                   # patch release by de
 [tool.semantic_release.branches.main]
 match = "(main)"
 
+[tool.semantic_release.branches.test]
+match = "(DeclanKorda/Auto-Release)"
+
 [project.scripts]
 imgnet = "imgnet.cli.__main__:cli"
 

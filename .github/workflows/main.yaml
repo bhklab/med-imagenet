@@ -120,3 +120,35 @@ jobs:
                 github_token: ${{ steps.app-token.outputs.token }}
                 git_committer_name: gh-actions-semver
                 git_committer_email: actions@github.com
+  ################################################################################################
+  # Publish-PyPI: Publish to PyPI when Continuous-Deployment is successful
+  ################################################################################################
+  Publish-PyPI:
+      needs: Continuous-Deployment
+      if: needs.Continuous-Deployment.outputs.released == 'true'
+      runs-on: ubuntu-latest
+
+      permissions:
+          id-token: write
+
+      steps:
+          - name: Checkout release tag
+            uses: actions/checkout@v4
+            with:
+                ref: ${{ needs.Continuous-Deployment.outputs.tag }}
+
+          - name: Set up Python
+            uses: actions/setup-python@v5
+            with:
+                python-version: "3.12"
+
+          - name: Install build tools
+            run: |
+                python -m pip install --upgrade build
+
+          - name: Build package
+            run: |
+                python -m build --sdist --wheel --outdir dist/
+
+          - name: Publish to PyPI
+            uses: pypa/gh-action-pypi-publish@release/v1
