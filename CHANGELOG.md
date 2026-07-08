@@ -1,6 +1,13 @@
 # CHANGELOG
 
 
+## [0.2.0](https://github.com/bhklab/med-imagenet/compare/v0.1.1...v0.2.0) (2026-07-08)
+
+
+### Features
+
+* auto release stuff ([#15](https://github.com/bhklab/med-imagenet/issues/15)) ([2d8ba29](https://github.com/bhklab/med-imagenet/commit/2d8ba29be080115c7a471ca13e7d822a1382f1e1))
+
 ## v0.1.0 (2026-07-08)
 
 ### Bug Fixes
