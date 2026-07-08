@@ -75,19 +75,20 @@ jobs:
   ################################################################################################
   Continuous-Deployment:
       concurrency: release
+
       permissions:
-          id-token: write
-          actions: read
           contents: write
-          packages: write
           issues: write
           pull-requests: write
 
-      needs: [Unit-Tests, Integration-Tests, Linting, Build-Docs]
+      needs:
+          - Unit-Tests
+          - Integration-Tests
+          - Linting
+          - Build-Docs
 
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development'
+      if: github.ref_name == 'main' || github.ref_name == 'development'
 
-      # Set up operating system
       runs-on: ubuntu-latest
 
       outputs:
@@ -95,28 +96,29 @@ jobs:
           version: ${{ steps.release.outputs.version }}
           tag: ${{ steps.release.outputs.tag }}
 
-      # Define job steps
       steps:
-          - uses: actions/create-github-app-token@v1
+          - name: Create GitHub App Token
+            uses: actions/create-github-app-token@v1
             id: app-token
             with:
                 app-id: ${{ vars.SEMVERPOLICE_ID }}
                 private-key: ${{ secrets.SEMVER_APP_KEY }}
 
-          - name: Set up Python 3.12
-            uses: actions/setup-python@v5
-            with:
-                python-version: 3.12
-
-          - name: Check-out repository
-            uses: actions/checkout@v3
+          - name: Checkout repository
+            uses: actions/checkout@v4
             with:
                 fetch-depth: 0
 
+          - name: Set up Python
+            uses: actions/setup-python@v5
+            with:
+                python-version: "3.12"
+
           - name: Python Semantic Release
-            uses: python-semantic-release/python-semantic-release@master
             id: release
+            uses: python-semantic-release/python-semantic-release@v9
             with:
                 root_options: -v
-                github_token: ${{ secrets.MEDIMG_TESTDATA_PAT }}
-                git_committer_name: "gh-actions-semver"
+                github_token: ${{ steps.app-token.outputs.token }}
+                git_committer_name: gh-actions-semver
+                git_committer_email: actions@github.com
