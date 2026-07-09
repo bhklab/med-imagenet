@@ -1,6 +1,13 @@
 # CHANGELOG
 
 
+## [0.3.0](https://github.com/bhklab/med-imagenet/compare/v0.2.1...v0.3.0) (2026-07-09)
+
+
+### Features
+
+* add badges to README and update classifiers in pyproject.toml ([#20](https://github.com/bhklab/med-imagenet/issues/20)) ([c2b198c](https://github.com/bhklab/med-imagenet/commit/c2b198c94a0db0293f93c84d306922d69f398e95))
+
 ## [0.2.1](https://github.com/bhklab/med-imagenet/compare/v0.2.0...v0.2.1) (2026-07-09)
 
 
