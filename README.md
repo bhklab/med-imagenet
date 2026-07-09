@@ -1,5 +1,12 @@
 # Med-ImageNet: A Standardized Resource for AI-Ready Oncology Imaging
 
+[![GitHub Release](https://img.shields.io/github/v/release/bhklab/med-imagenet)](https://github.com/bhklab/med-imagenet/releases/latest)
+[![CI tests](https://github.com/bhklab/med-imagenet/actions/workflows/main.yaml/badge.svg)](https://github.com/bhklab/med-imagenet/actions/workflows/main.yaml)
+[![pixi-badge](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/prefix-dev/pixi/main/assets/badge/v0.json&style=flat-square)](https://github.com/prefix-dev/pixi)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/med-imagenet)](https://pypi.org/project/med-imagenet/)
+[![PyPI - Version](https://img.shields.io/pypi/v/med-imagenet)](https://pypi.org/project/med-imagenet/)
+[![PyPI - Format](https://img.shields.io/pypi/format/med-imagenet)](https://pypi.org/project/med-imagenet/)
+
 ## Core Features
 
 Med-ImageNet is an open-source platform that transforms heterogeneous
