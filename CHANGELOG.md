@@ -1,6 +1,16 @@
 # CHANGELOG
 
 
+## [0.2.1](https://github.com/bhklab/med-imagenet/compare/v0.2.0...v0.2.1) (2026-07-09)
+
+
+### Bug Fixes
+
+* fixed incorrect username in Publish-To-PyPi action ([081697f](https://github.com/bhklab/med-imagenet/commit/081697f9f666b863b722a8b7c2db833461e2e8ac))
+* PyPi publishing github action typo ([c780f33](https://github.com/bhklab/med-imagenet/commit/c780f33289f31c7d9dfb4a6ba2f88011cc1cd36a))
+* re-implementing auto-release via release please and pypi publishing actions ([356ce98](https://github.com/bhklab/med-imagenet/commit/356ce98697d9cd63231d9c5f445f79ea6ac11c14))
+* updated dependancy for publish-pypi task in pixi.toml ([13e4432](https://github.com/bhklab/med-imagenet/commit/13e4432279cd718fc83b3eb2831fa55b9daeaf1a))
+
 ## [0.2.0](https://github.com/bhklab/med-imagenet/compare/v0.1.1...v0.2.0) (2026-07-08)
 
 
