@@ -1306,13 +1306,15 @@
 </table>
 <p><strong>Subcommands</strong></p>
 <ul>
-<li><em>collections</em>: Inspect indexed collections.</li>
-<li><em>download</em>: Download instances from a manifest file or a query token.</li>
-<li><em>query</em>: Query indexed datasets and save selected series for downstream use.</li>
-<li><em>update-index</em>: Update the indexed datasets: download from Hugging Face.</li>
+<li><em>collections</em>: Explore datasets available in the ImgNet index.</li>
+<li><em>download</em>: Download medical imaging data from an ImgNet query manifest.</li>
+<li><em>query</em>: Query medical imaging datasets and save matching DICOM series metadata.</li>
+<li><em>update-index</em>: Download and update the local ImgNet dataset index.</li>
 </ul>
 <h3 id="collections">collections<a class="headerlink" href="#collections" title="Anchor link to this section for reference">#</a></h3>
-<p>Inspect indexed collections.</p>
+<p>Explore datasets available in the ImgNet index.</p>
+<p>Collections are indexed medical imaging datasets that can be searched,
+inspected, and downloaded using ImgNet commands.</p>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>imgnet collections [OPTIONS] COMMAND [ARGS]...
 </span></code></pre></div>
@@ -1337,12 +1339,16 @@
 </table>
 <p><strong>Subcommands</strong></p>
 <ul>
-<li><em>info</em>: Show basic metadata for a collection; use --tags for queryable columns.</li>
-<li><em>overview</em>: Show a comprehensive visual overview of the full index.</li>
-<li><em>summary</em>: Display the collections summary.</li>
+<li><em>info</em>: Display detailed information about an indexed collection.</li>
+<li><em>overview</em>: Display a visual overview of the ImgNet dataset index.</li>
+<li><em>summary</em>: Display a summary of all indexed collections.</li>
 </ul>
 <h4 id="info">info<a class="headerlink" href="#info" title="Anchor link to this section for reference">#</a></h4>
-<p>Show basic metadata for a collection; use --tags for queryable columns.</p>
+<p>Display detailed information about an indexed collection.</p>
+<p>Shows metadata such as the data source, file format, image count,
+modalities, body regions, and collection description.</p>
+<p>Use --tags to display the metadata fields available for filtering
+when building ImgNet queries.</p>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>imgnet collections info [OPTIONS] COLLECTION_NAME
 </span></code></pre></div>
@@ -1366,19 +1372,22 @@
 <tr>
 <td><code>--tags</code>, <code>-t</code></td>
 <td>boolean</td>
-<td>Include supported query tags per modality (for building rules).</td>
+<td>Show metadata fields available for querying, grouped by modality.</td>
 <td><code>False</code></td>
 </tr>
 <tr>
 <td><code>--json</code></td>
 <td>boolean</td>
-<td>Print metadata as JSON instead of a table.</td>
+<td>Output collection metadata as JSON instead of a formatted table.</td>
 <td><code>False</code></td>
 </tr>
 </tbody>
 </table>
 <h4 id="overview">overview<a class="headerlink" href="#overview" title="Anchor link to this section for reference">#</a></h4>
-<p>Show a comprehensive visual overview of the full index.</p>
+<p>Display a visual overview of the ImgNet dataset index.</p>
+<p>Shows aggregate statistics across all collections, including:
+number of collections, total images, storage size, data sources,
+file formats, modality distributions, and largest collections.</p>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>imgnet collections overview [OPTIONS]
 </span></code></pre></div>
@@ -1408,7 +1417,10 @@
 </tbody>
 </table>
 <h4 id="summary">summary<a class="headerlink" href="#summary" title="Anchor link to this section for reference">#</a></h4>
-<p>Display the collections summary.</p>
+<p>Display a summary of all indexed collections.</p>
+<p>Shows basic information including collection size, image count,
+modalities, file formats, and data sources.</p>
+<p>Use --update to rebuild the summary from the collection metadata.</p>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>imgnet collections summary [OPTIONS]
 </span></code></pre></div>
@@ -1432,16 +1444,23 @@
 <tr>
 <td><code>--update</code>, <code>-u</code></td>
 <td>boolean</td>
-<td>Update the collections summary.</td>
+<td>Rebuild the collections summary before generating the overview.</td>
 <td><code>False</code></td>
 </tr>
 </tbody>
 </table>
 <h3 id="download">download<a class="headerlink" href="#download" title="Anchor link to this section for reference">#</a></h3>
-<p>Download instances from a manifest file or a query token.</p>
-<p>MANIFEST_OR_TOKEN: Path to a manifest CSV, or a query token from <code>imgnet query</code>.</p>
+<p>Download medical imaging data from an ImgNet query manifest.</p>
+<p>The manifest should be generated using <code>imgnet query</code> and contains
+a list of imaging series to download from indexed datasets.</p>
+<p>By default, downloaded files are stored in the <code>srcdata</code> directory
+inside the output directory. Use <code>--process</code> to convert downloaded
+DICOM files into NIfTI format using med-imagetools. Processed files
+are stored in the <code>procdata</code> directory.</p>
+<p>MANIFEST:
+    Path to a CSV manifest generated by <code>imgnet query</code>.</p>
 <p><strong>Usage:</strong></p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>imgnet download [OPTIONS] [MANIFEST_OR_TOKEN]
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>imgnet download [OPTIONS] MANIFEST
 </span></code></pre></div>
 <p><strong>Options:</strong></p>
 <table>
@@ -1455,36 +1474,59 @@
 </thead>
 <tbody>
 <tr>
+<td><code>--help</code>, <code>-h</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
 <td><code>--output-dir</code>, <code>-o</code></td>
 <td>directory</td>
-<td>Path to the output directory.</td>
+<td>Directory where downloaded data will be stored. If not provided, a timestamped directory will be created in the current working directory.</td>
 <td>None</td>
 </tr>
 <tr>
 <td><code>--process</code>, <code>-p</code></td>
 <td>boolean</td>
-<td>Process all dicom files in the output directory using imgtools.</td>
+<td>Convert downloaded DICOM files to NIfTI format using med-imagetools.</td>
 <td><code>False</code></td>
 </tr>
 <tr>
 <td><code>--delete-srcdata</code></td>
 <td>boolean</td>
-<td>Delete the source data after processing.</td>
-<td><code>False</code></td>
-</tr>
-<tr>
-<td><code>--help</code></td>
-<td>boolean</td>
-<td>Show this message and exit.</td>
+<td>Delete downloaded DICOM source files after successful processing. This frees disk space but cannot be undone.</td>
 <td><code>False</code></td>
 </tr>
 </tbody>
 </table>
 <h3 id="query">query<a class="headerlink" href="#query" title="Anchor link to this section for reference">#</a></h3>
-<p>Query indexed datasets and save selected series for downstream use.</p>
-<p>Saves query_results.csv, valid_query.json, and valid_query_schema.json
-to the output directory. Pipe the output into <code>imgnet download</code> to
-retrieve the matched series.</p>
+<p>Query medical imaging datasets and save matching DICOM series metadata.</p>
+<p>Searches across indexed imaging collections to find series that match your
+criteria. Results are saved as a CSV file that can be piped into 
+<code>imgnet download</code> to retrieve the actual image files.</p>
+<p>Output files in <output-dir>:
+  - query_results.csv      : List of matching series with their metadata
+  - valid_query.json       : The query used (can be reused with --input-path)
+  - valid_query_schema.json: JSON schema for the query format</p>
+<p>QUERY LOGIC:
+  All specified filters are combined with AND logic. For example, using
+  --collection 4D-Lung --modality CT --rules "CT(PatientAge&gt;50)"
+  will only match CT series from the 4D-Lung collection where patient age &gt; 50.</p>
+<p>Rules provide the most powerful filtering and support:
+  - Operators: ==, !=, &lt;=, &gt;=, &lt;, &gt;
+  - Logical: AND, OR, and parentheses for grouping
+  - Values: strings (quoted), numbers, or unquoted words</p>
+<p>EXAMPLES:
+  # Query all CT scans from the 4D-Lung collection
+  imgnet query -c 4D-Lung -m CT</p>
+<p># Query multiple collections for MR and CT, save to custom directory
+  imgnet query -o ./my_query -c 4D-Lung -c Adrenal-ACC-Ki67-Seg -m MR -m CT</p>
+<p># Find female patients over 50 with CT chest scans
+  imgnet query -r 'CT(PatientSex=="F" AND PatientAge&gt;50 AND StudyDescription=="CHEST")'</p>
+<p># Find either CT or MR studies for patients under 30
+  imgnet query -r 'CT(PatientAge&lt;30) OR MR(PatientAge&lt;30)'</p>
+<p># Re-run a previous query
+  imgnet query -i ./previous_query/valid_query.json</p>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>imgnet query [OPTIONS]
 </span></code></pre></div>
@@ -1500,53 +1542,55 @@ retrieve the matched series.</p>
 </thead>
 <tbody>
 <tr>
+<td><code>--help</code>, <code>-h</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
 <td><code>--output-dir</code>, <code>-o</code></td>
 <td>directory</td>
-<td>Path to the output directory.</td>
+<td>Directory to save query results (default: ./query_results).</td>
 <td>None</td>
 </tr>
 <tr>
 <td><code>--input-path</code>, <code>-i</code></td>
 <td>file</td>
-<td>Path to a valid query json.</td>
+<td>Re-run a previous query by loading a saved valid_query.json file.</td>
 <td>None</td>
 </tr>
 <tr>
 <td><code>--collection</code>, <code>-c</code></td>
 <td>text</td>
-<td>Collection to query, or 'all' to query every collection (example: <code>-c 4D-Lung -c Adrenal-ACC-Ki67-Seg</code>)</td>
+<td>Include only files from this dataset collection. Can be specified multiple times. Use 'all' to query every collection.</td>
 <td>None</td>
 </tr>
 <tr>
 <td><code>--modality</code>, <code>-m</code></td>
 <td>text</td>
-<td>Modality to query (example: <code>-m CT -m RTSTRUCT -m SEG</code>)</td>
+<td>Include only files of this imaging modality (e.g., CT, MR, RTSTRUCT, SEG). Can be specified multiple times.</td>
 <td>None</td>
 </tr>
 <tr>
 <td><code>--file-type</code>, <code>-ft</code></td>
 <td>choice (<code>dicom</code> &#x7C; <code>nifti</code>)</td>
-<td>Restrict query to a specific file type (e.g. 'dicom', 'nifti'). Default for no restriction.</td>
+<td>Include only files in this format: 'dicom' or 'nifti' (default: both).</td>
 <td>None</td>
 </tr>
 <tr>
 <td><code>--rules</code>, <code>-r</code></td>
 <td>text</td>
-<td>filter rules.</td>
+<td>Filter series by metadata using boolean expressions. Format: modality(condition AND/OR condition). Example: -r 'CT(PatientAge&gt;50 AND StudyDescription!="CHEST")' Example: -r 'MR(SeriesDescription=="T2_AXIAL")' Example: -r 'CT(PatientSex=="F" OR PatientAge&lt;30)'</td>
 <td>None</td>
-</tr>
-<tr>
-<td><code>--help</code></td>
-<td>boolean</td>
-<td>Show this message and exit.</td>
-<td><code>False</code></td>
 </tr>
 </tbody>
 </table>
 <h3 id="update-index">update-index<a class="headerlink" href="#update-index" title="Anchor link to this section for reference">#</a></h3>
-<p>Update the indexed datasets: download from Hugging Face.</p>
-<p>Examples:</p>
-<p>imgnet update-index --path /custom/indexed_datasets</p>
+<p>Download and update the local ImgNet dataset index.</p>
+<p>The index contains metadata describing available imaging collections,
+including information required for searching and downloading datasets.</p>
+<p>By default, the index is stored in the ImgNet user data directory.
+Use --path to store or update the index in a custom location.</p>
 <p><strong>Usage:</strong></p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>imgnet update-index [OPTIONS]
 </span></code></pre></div>
@@ -1564,7 +1608,7 @@ retrieve the matched series.</p>
 <tr>
 <td><code>--path</code>, <code>-p</code></td>
 <td>path</td>
-<td>Path to the indexed_datasets directory. Defaults to $IMGNET_INDEX_DIR/indexed_datasets or platform user data dir.</td>
+<td>Path where the ImgNet indexed datasets will be stored. Defaults to $IMGNET_INDEX_DIR/indexed_datasets or the platform user data directory if the environment variable is not set.</td>
 <td>None</td>
 </tr>
 <tr>
