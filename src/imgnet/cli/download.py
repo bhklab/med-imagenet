@@ -10,6 +10,7 @@ from imgnet.loggers import logger
 from imgnet.query import ValidQuery
 
 @click.command(
+    no_args_is_help=False,
     epilog="""
 Examples:
 
@@ -40,6 +41,7 @@ Examples:
         readable=True,
         resolve_path=True,
     ),
+    required=False,
     metavar="MANIFEST",
 )
 @click.option(
@@ -79,7 +81,7 @@ Examples:
 @click.pass_context
 def download(
     ctx: click.Context,
-    manifest: str,
+    manifest: str | None,
     output_dir: Path | None,
     process: bool,
     delete_srcdata: bool,
