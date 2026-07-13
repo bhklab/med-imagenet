@@ -48,8 +48,7 @@ def test_download_from_manifest_file(runner: CliRunner, tmp_path: Path):
 def test_download_with_process_flag_accepts(runner: CliRunner, tmp_path: Path):
     """Download with --process flag is accepted (processing may run).
 
-    Uses a manifest CSV (query tokens are not wired through download yet; a long
-    token string is also mishandled as a filesystem path).
+    Uses a manifest CSV.
     """
     manifest_path = tmp_path / "manifest.csv"
     with open(manifest_path, "w", newline="") as f:
