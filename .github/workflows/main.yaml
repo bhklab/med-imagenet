@@ -71,6 +71,67 @@ jobs:
           pixi run -e ${{ matrix.env }} test
 
   ################################################################################################
+  # Generate-PNG: Capture collections overview for the README
+  ################################################################################################
+  Generate-PNG:
+    needs: [Docs, Tests]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development')
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Download and install termshot
+        run: |
+          curl -L "https://github.com/homeport/termshot/releases/download/v0.5.0/termshot_0.5.0_linux_amd64.tar.gz" -o termshot.tar.gz
+          tar -xzf termshot.tar.gz
+          chmod +x termshot
+          sudo mv termshot /usr/local/bin/termshot
+          rm termshot.tar.gz
+          termshot --version
+
+      - name: Install Pixi
+        uses: prefix-dev/setup-pixi@v0.10.0
+        with:
+          pixi-version: v0.66.0
+          environments: default
+          cache: true
+          locked: false
+          activate-environment: true
+
+      - name: Warm the CLI
+        run: imgnet --help
+
+      - name: Generate overview.png using termshot
+        env:
+          TERM: xterm-256color
+          FORCE_COLOR: "1"
+          NO_COLOR: ""
+        run: |
+          mkdir -p docs/figures
+          unset NO_COLOR
+          termshot --filename docs/figures/overview.png -- imgnet -q collections overview
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add docs/figures/overview.png
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: regenerate overview.png [skip ci]"
+            git push
+          fi
+
+  ################################################################################################
   # CD: Continuous Deployment
   ################################################################################################
   release-please:

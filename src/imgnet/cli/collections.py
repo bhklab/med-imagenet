@@ -11,7 +11,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-_console = Console()
+_console = Console(force_terminal=True, color_system="truecolor")
 
 from imgnet.collections.store import IndexedDatasets
 
