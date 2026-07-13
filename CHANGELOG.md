@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## [0.3.1](https://github.com/bhklab/med-imagenet/compare/v0.3.0...v0.3.1) (2026-07-13)
+
+
+### Bug Fixes
+
+* update hugging face size getter to new name ([#26](https://github.com/bhklab/med-imagenet/issues/26)) ([5a73ab2](https://github.com/bhklab/med-imagenet/commit/5a73ab2543d6a1d1da8d6a758a9dbc59e30f543c))
+
+
+### Documentation
+
+* better help messages for cli tools ([#25](https://github.com/bhklab/med-imagenet/issues/25)) ([a0e74af](https://github.com/bhklab/med-imagenet/commit/a0e74af046b21ac021d9a59a60bc718251776a00))
+* update overview png automatically ([#27](https://github.com/bhklab/med-imagenet/issues/27)) ([9a1cf1b](https://github.com/bhklab/med-imagenet/commit/9a1cf1b98e6d4902ea0895eb37fe7c0b26aa16e4))
+
 ## [0.3.0](https://github.com/bhklab/med-imagenet/compare/v0.2.1...v0.3.0) (2026-07-09)
 
 
