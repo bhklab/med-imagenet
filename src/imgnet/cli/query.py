@@ -9,6 +9,7 @@ from imgnet.collections.source import FileType
 from imgnet.loggers import logger
 
 @click.command(no_args_is_help=True)
+@click.help_option("--help", "-h")
 @click.option(
     "--output-dir",
     "-o",
@@ -120,12 +121,6 @@ def query(
       # Re-run a previous query
       imgnet query -i ./previous_query/valid_query.json
 
-    \b
-    TIPS:
-      - Start with broad filters (e.g., just --collection) then narrow down
-      - Use --modality to reduce the files processed by rules
-      - If querying many collections, consider using 'all' or multiple -c flags
-      - For large datasets, be specific with your rules to avoid timeouts
     """
     if output_dir is not None:
         output_path = Path(output_dir)

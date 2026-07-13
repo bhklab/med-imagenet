@@ -30,6 +30,7 @@ Examples:
     imgnet query ... | imgnet download
 """
 )
+@click.help_option("--help", "-h")
 @click.argument(
     "manifest",
     type=click.Path(
