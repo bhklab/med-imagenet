@@ -10642,8 +10642,8 @@ packages:
   requires_python: '>=3.7'
 - pypi: ./
   name: med-imagenet
-  version: 0.1.0
-  sha256: 6236077699cebce939d60ded755e34b35b16797fda87f9c0c48bf3bd2a782bcc
+  version: 0.3.0
+  sha256: 740a6ad9b248d497f9bf9d01d8ee2610a8c045970147fff4b79b4bd82a53f30f
   requires_dist:
   - med-imagetools>=2.11.1,<3
   - idc-index>=0.11.10,<0.12

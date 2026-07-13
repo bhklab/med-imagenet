@@ -20,7 +20,7 @@ from imgnet.loggers import logger
         resolve_path=True,
     ),
     default=None,
-    help="Path to the output directory."
+    help="Directory to save query results (default: ./query_results).",
 )
 @click.option(
     "--input-path",
@@ -33,15 +33,15 @@ from imgnet.loggers import logger
         resolve_path=True,
     ),
     default=None,
-    help="Path to a valid query json."
+    help="Re-run a previous query by loading a saved valid_query.json file.",
 )
 @click.option(
     "--collection",
     "-c",
     type=str,
     multiple=True,
-    default = None,
-    help = "Collection to query, or 'all' to query every collection (example: `-c 4D-Lung -c Adrenal-ACC-Ki67-Seg`)"
+    default=None,
+    help="Include only files from this dataset collection. Can be specified multiple times. Use 'all' to query every collection.",
 )
 @click.option(
     "--modality",
@@ -49,7 +49,7 @@ from imgnet.loggers import logger
     type=str,
     multiple=True,
     default=None,
-    help="Modality to query (example: `-m CT -m RTSTRUCT -m SEG`)"
+    help="Include only files of this imaging modality (e.g., CT, MR, RTSTRUCT, SEG). Can be specified multiple times.",
 )
 @click.option(
     "--file-type",
@@ -58,8 +58,7 @@ from imgnet.loggers import logger
         [ft.value for ft in FileType], case_sensitive=False
     ),
     default=None,
-    help="Restrict query to a specific file type "
-    "(e.g. 'dicom', 'nifti'). Default for no restriction.",
+    help="Include only files in this format: 'dicom' or 'nifti' (default: both).",
 )
 @click.option(
     "--rules",
@@ -67,7 +66,10 @@ from imgnet.loggers import logger
     type=str,
     default=None,
     multiple=True,
-    help="filter rules."
+    help="Filter series by metadata using boolean expressions. Format: modality(condition AND/OR condition). "
+         "Example: -r 'CT(PatientAge>50 AND StudyDescription!=\"CHEST\")' "
+         "Example: -r 'MR(SeriesDescription==\"T2_AXIAL\")' "
+         "Example: -r 'CT(PatientSex==\"F\" OR PatientAge<30)'",
 )
 
 
@@ -79,11 +81,51 @@ def query(
     file_type: str | None,
     rules: list[str] | None,
 ) -> None:
-    """Query indexed datasets and save selected series for downstream use.
+    """Query medical imaging datasets and save matching DICOM series metadata.
 
-    Saves query_results.csv, valid_query.json, and valid_query_schema.json
-    to the output directory. Pipe the output into `imgnet download` to
-    retrieve the matched series.
+    Searches across indexed imaging collections to find series that match your
+    criteria. Results are saved as a CSV file that can be piped into 
+    `imgnet download` to retrieve the actual image files.
+
+    Output files in <output-dir>:
+      - query_results.csv      : List of matching series with their metadata
+      - valid_query.json       : The query used (can be reused with --input-path)
+      - valid_query_schema.json: JSON schema for the query format
+
+    \b
+    QUERY LOGIC:
+      All specified filters are combined with AND logic. For example, using
+      --collection 4D-Lung --modality CT --rules "CT(PatientAge>50)"
+      will only match CT series from the 4D-Lung collection where patient age > 50.
+
+      Rules provide the most powerful filtering and support:
+      - Operators: ==, !=, <=, >=, <, >
+      - Logical: AND, OR, and parentheses for grouping
+      - Values: strings (quoted), numbers, or unquoted words
+
+    \b
+    EXAMPLES:
+      # Query all CT scans from the 4D-Lung collection
+      imgnet query -c 4D-Lung -m CT
+
+      # Query multiple collections for MR and CT, save to custom directory
+      imgnet query -o ./my_query -c 4D-Lung -c Adrenal-ACC-Ki67-Seg -m MR -m CT
+
+      # Find female patients over 50 with CT chest scans
+      imgnet query -r 'CT(PatientSex=="F" AND PatientAge>50 AND StudyDescription=="CHEST")'
+
+      # Find either CT or MR studies for patients under 30
+      imgnet query -r 'CT(PatientAge<30) OR MR(PatientAge<30)'
+
+      # Re-run a previous query
+      imgnet query -i ./previous_query/valid_query.json
+
+    \b
+    TIPS:
+      - Start with broad filters (e.g., just --collection) then narrow down
+      - Use --modality to reduce the files processed by rules
+      - If querying many collections, consider using 'all' or multiple -c flags
+      - For large datasets, be specific with your rules to avoid timeouts
     """
     if output_dir is not None:
         output_path = Path(output_dir)

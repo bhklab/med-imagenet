@@ -278,7 +278,11 @@ def _render_overview(collection_db: dict) -> None:
 @click.group("collections", no_args_is_help=True)
 @click.help_option("--help", "-h")
 def collections() -> None:
-    """Inspect indexed collections."""
+    """Explore datasets available in the ImgNet index.
+
+    Collections are indexed medical imaging datasets that can be searched,
+    inspected, and downloaded using ImgNet commands.
+    """
 
 
 @collections.command("summary")
@@ -287,10 +291,18 @@ def collections() -> None:
     "--update",
     "-u",
     is_flag=True,
-    help="Update the collections summary.",
+    help="Rebuild the collections summary before generating the overview."
 )
+
+
 def collections_summary(update: bool) -> None:
-    """Display the collections summary."""
+    """Display a summary of all indexed collections.
+
+    Shows basic information including collection size, image count,
+    modalities, file formats, and data sources.
+
+    Use --update to rebuild the summary from the collection metadata.
+    """
     store = IndexedDatasets()
     _print_collections_summary(store, update)
 
@@ -302,16 +314,23 @@ def collections_summary(update: bool) -> None:
     "--tags",
     "-t",
     is_flag=True,
-    help="Include supported query tags per modality (for building rules).",
+    help="Show metadata fields available for querying, grouped by modality.",
 )
 @click.option(
     "--json",
     "as_json",
     is_flag=True,
-    help="Print metadata as JSON instead of a table.",
+    help="Output collection metadata as JSON instead of a formatted table.",
 )
 def collections_info(collection_name: str, tags: bool, as_json: bool) -> None:
-    """Show basic metadata for a collection; use --tags for queryable columns."""
+    """Display detailed information about an indexed collection.
+
+    Shows metadata such as the data source, file format, image count,
+    modalities, body regions, and collection description.
+
+    Use --tags to display the metadata fields available for filtering
+    when building ImgNet queries.
+    """
     store = IndexedDatasets()
     try:
         if as_json:
@@ -337,7 +356,12 @@ def collections_info(collection_name: str, tags: bool, as_json: bool) -> None:
     help="Rebuild the collections summary before generating the overview.",
 )
 def collections_overview(update: bool) -> None:
-    """Show a comprehensive visual overview of the full index."""
+    """Display a visual overview of the ImgNet dataset index.
+
+    Shows aggregate statistics across all collections, including:
+    number of collections, total images, storage size, data sources,
+    file formats, modality distributions, and largest collections.
+    """
     store = IndexedDatasets()
     collection_db = store.summary(update)
     _render_overview(collection_db)
