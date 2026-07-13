@@ -107,7 +107,7 @@ jobs:
           activate-environment: true
 
       - name: Warm the CLI
-        run: imgnet --help
+        run: imgnet collections overview
 
       - name: Generate overview.png using termshot
         env:
