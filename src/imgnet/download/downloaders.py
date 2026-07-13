@@ -84,12 +84,10 @@ class HuggingFaceDownloader(BaseDownloader):
 
         api = HfApi()
         info = api.dataset_info(self.repo_id)
-        if hasattr(info, "usedStorage"):
-            return round(
-                float(info.usedStorage) / 1000 / 1000 / 1000, 2
-            )  # convert to GB
-        else:
+        used_storage = info.used_storage
+        if used_storage is None:
             return 0.0
+        return round(float(used_storage) / 1000 / 1000 / 1000, 2)  # convert to GB
 
     @property
     def members(self) -> list[str]:
