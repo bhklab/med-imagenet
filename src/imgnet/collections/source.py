@@ -14,6 +14,11 @@ class TCIASource(BaseModel):
     source: Literal["tcia"] = "tcia"
     post_download: list[str] = Field(default_factory=lambda: ["unzip"])
 
+class PrivateTCIASource(BaseModel):
+    file_type: FileType = FileType.DICOM
+    source: Literal["private_tcia"] = "private_tcia"
+    post_download: list[str] = Field(default_factory=lambda: ["unzip"])
+
 
 class DropboxSource(BaseModel):
     file_type: FileType

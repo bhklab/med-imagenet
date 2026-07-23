@@ -34,3 +34,7 @@ def _fetch_collection_description_tcia(collection: str) -> str:
         collections_df["collection_id"] == collection, "Description"
     ].iloc[0]
     return description
+
+def _convert_tcia_collection_name_to_idc(collection: str) -> str:
+    """Convert tcia collection name to idc format."""
+    return collection.lower().replace(" ", "_").replace("-", "_")

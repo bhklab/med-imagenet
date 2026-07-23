@@ -18,22 +18,27 @@ from imgnet.collections.source import (
     S3Source,
     SourceConfig,
     TCIASource,
+    PrivateTCIASource,
     ZenodoSource,
     source_adapter,
 )
 from imgnet.collections.utils import (
     _default_indexed_datasets_path,
     _fetch_collection_description_tcia,
+    _convert_tcia_collection_name_to_idc
 )
 from imgnet.download.base import BaseDownloader
 from imgnet.download.downloaders import (
     DropboxDownloader,
     HuggingFaceDownloader,
     IDCDownloader,
+    NBIADownloader,
     S3Downloader,
     ZenodoDownloader,
 )
 from imgnet.loggers import logger, tqdm_logging_redirect
+
+from imgnet.utils import get_idc_client
 
 
 def _unknown_collection_message(known: list[str], name: str) -> str:
@@ -273,7 +278,12 @@ class Collection:
         """Return the validated source config. Falls back to TCIASource() when source.json is missing."""
         config_path = self.path / "source.json"
         if not config_path.exists():
-            return TCIASource()
+            client = get_idc_client()
+            public_collections = client.get_collections()
+            if _convert_tcia_collection_name_to_idc(self.name) in public_collections:
+                return TCIASource()
+            else:
+                return PrivateTCIASource()
         return source_adapter.validate_python(
             orjson.loads(config_path.read_bytes())
         )
@@ -287,6 +297,8 @@ class Collection:
         match self.source_config:
             case TCIASource():
                 return IDCDownloader(self.name)
+            case PrivateTCIASource():
+                return NBIADownloader(self.name)
             case S3Source():
                 return S3Downloader(self.source_config.bucket_name)
             case ZenodoSource():
