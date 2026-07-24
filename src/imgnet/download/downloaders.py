@@ -400,6 +400,7 @@ class NBIADownloader(BaseDownloader):
     def __init__(self, collection_id: str) -> None:
         self.collection_id = collection_id
         self.client = get_nbia_client()
+        self._members = [item['SeriesInstanceUID'] for item in self.client.getSeries(self.collection_id)]
 
 
     def download(
@@ -422,8 +423,8 @@ class NBIADownloader(BaseDownloader):
                 f"No instance IDs provided, downloading all series from private TCIA collection {self.collection_id}"
             )
             series_uids = self.members
-
-        output_path.mkdir(parents=True, exist_ok=True)
+        series_uids = [{"SeriesInstanceUID": uid} for uid in series_uids]
+        Path(output_path).mkdir(parents=True, exist_ok=True)
         with tqdm_logging_redirect():
             self.client.downloadSeries(
                 series_uids,
@@ -436,4 +437,4 @@ class NBIADownloader(BaseDownloader):
 
     @property
     def members(self) -> list[str]:
-        return [item['SeriesInstanceUID'] for item in self.client.getSeries(self.collection_id)]
+        return self._members

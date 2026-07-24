@@ -6,6 +6,8 @@ import os
 from dotenv import load_dotenv
 from tcia_utils import nbia
 
+load_dotenv()
+
 class NBIAClientWrapper:
     """Wrapper around tcia_utils to manage authentication."""
     
@@ -16,8 +18,9 @@ class NBIAClientWrapper:
     
     def authenticate(self):
         """Authenticate with TCIA."""
+        print("authenticating")
         if not self._authenticated:
-            nbia.getToken(username=self.username, password=self.password)
+            nbia.getToken(user=self.username, pw=self.password)
             self._authenticated = True
     
     def downloadSeries(self, series_uids: list[str], path: str):
@@ -28,6 +31,7 @@ class NBIAClientWrapper:
     def getSeries(self, collection: str):
             """Get series metadata for each series in a collection"""
             self.authenticate()
+            print("calling api")
             return nbia.getSeries(collection=collection)
     
 
@@ -39,10 +43,13 @@ _lock = threading.Lock()
 
 def get_nbia_client() -> NBIAClientWrapper:
     """Return the shared IDC client, creating it on first use. Thread-safe."""
+    print("get client")
     if _state["client"] is None:
         with _lock:
             if _state["client"] is None:
+                print("creating client")
                 _state["client"] = NBIAClientWrapper(username=os.getenv('NBIA_USERNAME'), password=os.getenv('NBIA_PASSWORD'))
+                print("client created.")
 
     if _state["client"] is None:
         raise RuntimeError("Failed to create NBIA client")
