@@ -27,6 +27,19 @@ class DropboxSource(BaseModel):
     post_download: list[str] = Field(default_factory=lambda: ["unzip"])
     description: str = Field(default="")
 
+class GoogleDriveSource(BaseModel):
+    file_type: FileType
+    source: Literal["google drive"] = "google drive"
+    url: str
+    post_download: list[str] = Field(default_factory=lambda: ["unzip"])
+    description: str = Field(default="")
+
+class GitHubSource(BaseModel):
+    file_type: FileType
+    source: Literal["github"] = "github"
+    repo_id: str
+    post_download: list[str] = Field(default_factory=lambda: ["unzip"])
+    description: str = Field(default="")
 
 class S3Source(BaseModel):
     file_type: FileType

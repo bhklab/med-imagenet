@@ -438,3 +438,265 @@ class NBIADownloader(BaseDownloader):
     @property
     def members(self) -> list[str]:
         return self._members
+
+
+class GitHubDownloader(BaseDownloader):
+    def __init__(self, repo_id: str) -> None:
+        self.repo_id = repo_id
+        # Parse owner/repo from repo_id
+        parts = repo_id.split("/")
+        if len(parts) != 2:
+            msg = f"Invalid GitHub repo_id format: {repo_id}. Expected 'owner/repo'"
+            raise ValueError(msg)
+        self.owner, self.repo = parts
+        self.api_url = f"https://api.github.com/repos/{self.owner}/{self.repo}"
+
+    def download(
+        self,
+        output_path: Path,
+        instance_ids: list[str] | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
+        """Download from GitHub. Here instance_ids is a list of filenames to download."""
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if instance_ids is None:
+            logger.info(
+                f"Downloading all instances from GitHub repository {self.repo_id}"
+            )
+            files_to_download = self.members
+        else:
+            logger.info(
+                f"Downloading {len(instance_ids)} instances from GitHub repository {self.repo_id}"
+            )
+            remaining = set(instance_ids)
+            files_to_download = []
+
+            # Get all files from the GitHub repository
+            all_files = self._get_repo_files()
+            
+            for file_info in all_files:
+                file_name = file_info["name"]
+                if file_name in remaining:
+                    files_to_download.append(file_info)
+                    remaining.remove(file_name)
+                    continue
+
+                if RemoteArchive.is_supported_archive(file_name) and remaining:
+                    # For GitHub, we need to get the raw URL for the archive
+                    archive_url = f"https://raw.githubusercontent.com/{self.owner}/{self.repo}/main/{file_name}"
+                    archive = RemoteArchive(
+                        archive_url, Path(file_name).suffix
+                    )
+                    extracted = archive.extract(
+                        filenames=sorted(remaining),
+                        output_path=output_path,
+                    )
+                    remaining -= set(extracted)
+
+            if remaining:
+                msg = f"Instance IDs {sorted(remaining)} not found in GitHub repository {self.repo_id}"
+                logger.warning(msg)
+
+        for file_info in files_to_download:
+            # Get the raw download URL
+            download_url = file_info.get("download_url")
+            if download_url:
+                _download_http_file(
+                    url=download_url,
+                    out_file=output_path / file_info["name"],
+                    desc=file_info["name"],
+                    size=file_info.get("size", None),
+                )
+
+    def _get_repo_files(self) -> list[dict]:
+        """Get all files from the GitHub repository."""
+        # Get contents of the repository
+        response = requests.get(f"{self.api_url}/contents")
+        response.raise_for_status()
+        contents = response.json()
+        
+        files = []
+        for item in contents:
+            if item["type"] == "file":
+                files.append(item)
+            elif item["type"] == "dir":
+                # Recursively get files from subdirectories
+                subdir_response = requests.get(item["url"])
+                subdir_response.raise_for_status()
+                subdir_contents = subdir_response.json()
+                for subitem in subdir_contents:
+                    if subitem["type"] == "file":
+                        files.append(subitem)
+        
+        return files
+
+    @property
+    def size(self) -> float:
+        """Get total size of repository in GB."""
+        response = requests.get(f"{self.api_url}")
+        response.raise_for_status()
+        repo_info = response.json()
+        size_kb = repo_info.get("size", 0)  # GitHub API returns size in KB
+        return round(size_kb / 1000 / 1000, 2)  # convert to GB
+
+    @property
+    def members(self) -> list[str]:
+        """Get all filenames in the repository."""
+        files = self._get_repo_files()
+        updated_file_names = []
+
+        for file_info in files:
+            file_name = file_info["name"]
+            if RemoteArchive.is_supported_archive(file_name):
+                archive_url = f"https://raw.githubusercontent.com/{self.owner}/{self.repo}/main/{file_name}"
+                archive = RemoteArchive(
+                    archive_url, Path(file_name).suffix
+                )
+                updated_file_names.extend(archive.members)
+            else:
+                updated_file_names.append(file_name)
+
+        return list(set(updated_file_names))
+
+class GoogleDriveDownloader(BaseDownloader):
+    def __init__(self, file_id: str) -> None:
+        self.file_id = file_id
+        # For direct download, use the download URL
+        self.url = f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t"
+        # Alternative URL that works for large files
+        self.api_url = f"https://www.googleapis.com/drive/v3/files/{file_id}"
+        self.download_url = f"https://drive.usercontent.google.com/uc?id={file_id}&export=download"
+        
+    def _get_file_info(self) -> dict:
+        """Get file metadata from Google Drive API."""
+        # Using the public API endpoint without authentication for public files
+        response = requests.get(f"{self.api_url}?key=AIzaSyD8xWj2hP8sK9qy2LdJ7zXgY3r1q5s7t9")
+        if response.status_code == 404:
+            # Try the fallback method
+            response = requests.head(self.url)
+            response.raise_for_status()
+            content_disposition = response.headers.get('content-disposition', '')
+            file_name = content_disposition.split('filename=')[-1].strip('"') if 'filename=' in content_disposition else f"{self.file_id}.file"
+            return {"name": file_name, "size": int(response.headers.get('content-length', 0))}
+        
+        if response.status_code != 200:
+            # Fallback to a more reliable method
+            response = requests.get(f"https://drive.google.com/uc?id={self.file_id}&export=download")
+            response.raise_for_status()
+            # Try to extract filename from content-disposition
+            content_disposition = response.headers.get('content-disposition', '')
+            file_name = content_disposition.split('filename=')[-1].strip('"') if 'filename=' in content_disposition else f"{self.file_id}.file"
+            return {"name": file_name, "size": int(response.headers.get('content-length', 0))}
+        
+        data = response.json()
+        return {"name": data.get("name", f"{self.file_id}.file"), "size": int(data.get("size", 0))}
+
+    def download(
+        self,
+        output_path: Path,
+        instance_ids: list[str] | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
+        """Download from Google Drive. Supports selecting specific instance_ids from archives."""
+        output_path.mkdir(parents=True, exist_ok=True)
+        file_info = self._get_file_info()
+        file_name = file_info["name"]
+        
+        # Get the actual download URL that works
+        actual_url = f"https://drive.usercontent.google.com/download?id={self.file_id}&export=download&confirm=t"
+        
+        # Handle the case where Google Drive returns a confirmation page
+        session = requests.Session()
+        response = session.get(actual_url, stream=True)
+        
+        if "confirm" in response.url and "logout" not in response.url:
+            # Extract the confirmation token
+            from urllib.parse import urlparse, parse_qs
+            parsed = urlparse(response.url)
+            confirm = parse_qs(parsed.query).get('confirm', [''])[0]
+            if confirm:
+                actual_url = f"https://drive.usercontent.google.com/download?id={self.file_id}&export=download&confirm={confirm}"
+                response = session.get(actual_url, stream=True)
+
+        if instance_ids is None:
+            logger.info(
+                f"Downloading file from Google Drive ID {self.file_id}"
+            )
+            _download_http_file(
+                url=actual_url,
+                out_file=output_path / file_name,
+                desc=file_name,
+            )
+            return None
+
+        remaining = set(instance_ids)
+        logger.info(
+            f"Downloading {len(remaining)} files from Google Drive ID {self.file_id}"
+        )
+        
+        if file_name in remaining:
+            _download_http_file(
+                url=actual_url,
+                out_file=output_path / file_name,
+                desc=file_name,
+            )
+            remaining.remove(file_name)
+
+        if RemoteArchive.is_supported_archive(file_name) and remaining:
+            # Use the confirmed URL for archive extraction
+            archive = RemoteArchive(actual_url, Path(file_name).suffix)
+            extracted = archive.extract(
+                filenames=sorted(remaining), output_path=output_path
+            )
+            remaining -= set(extracted)
+
+        if remaining:
+            msg = (
+                f"Instance IDs {sorted(remaining)} not found in Google Drive source"
+            )
+            logger.warning(msg)
+
+    @property
+    def size(self) -> float:
+        """Get file size in GB."""
+        try:
+            file_info = self._get_file_info()
+            size = float(file_info.get("size", 0))
+            return round(size / 1000 / 1000 / 1000, 2)  # convert to GB
+        except Exception:
+            # Fallback: try to get size from direct download
+            try:
+                with requests.get(self.url, stream=True) as r:
+                    r.raise_for_status()
+                    size = float(r.headers.get("content-length", 0))
+                    return round(size / 1000 / 1000 / 1000, 2)
+            except Exception:
+                return 0.0
+
+    @property
+    def members(self) -> list[str]:
+        """Get all members, including contents of archives."""
+        file_info = self._get_file_info()
+        file_name = file_info["name"]
+        
+        if RemoteArchive.is_supported_archive(file_name):
+            try:
+                # Get the actual download URL with confirmation if needed
+                actual_url = f"https://drive.usercontent.google.com/download?id={self.file_id}&export=download&confirm=t"
+                session = requests.Session()
+                response = session.get(actual_url, stream=True)
+                
+                if "confirm" in response.url and "logout" not in response.url:
+                    from urllib.parse import urlparse, parse_qs
+                    parsed = urlparse(response.url)
+                    confirm = parse_qs(parsed.query).get('confirm', [''])[0]
+                    if confirm:
+                        actual_url = f"https://drive.usercontent.google.com/download?id={self.file_id}&export=download&confirm={confirm}"
+                
+                return RemoteArchive(actual_url, Path(file_name).suffix).members
+            except Exception:
+                return [file_name]
+        
+        return [file_name]
+
