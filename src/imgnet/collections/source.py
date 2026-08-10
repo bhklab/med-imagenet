@@ -76,7 +76,7 @@ class HuggingFaceSource(BaseModel):
 
 
 SourceConfig = Annotated[
-    TCIASource | DropboxSource | S3Source | ZenodoSource | HuggingFaceSource,
+    TCIASource | DropboxSource | S3Source | ZenodoSource | HuggingFaceSource | LMUMunichSource,
     Field(discriminator="source"),
 ]
 

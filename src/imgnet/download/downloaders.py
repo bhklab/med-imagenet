@@ -234,10 +234,9 @@ class LMUMunichDownloader(BaseDownloader):
             if remaining:
                 msg = f"Instance IDs {sorted(remaining)} not found in LMU Munich record {self.record_id}"
                 logger.warning(msg)
-
         for file_info in files_to_download:
             _download_http_file(
-                url=file_info["links"]["self"],
+                url=file_info["links"]["content"],
                 out_file=output_path / file_info["key"],
                 desc=file_info["key"],
                 size=file_info["size"],
