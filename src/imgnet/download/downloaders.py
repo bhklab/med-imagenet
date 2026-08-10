@@ -100,8 +100,9 @@ class HuggingFaceDownloader(BaseDownloader):
 
 
 class ZenodoDownloader(BaseDownloader):
-    def __init__(self, record_id: str) -> None:
+    def __init__(self, record_id: str, url: str = "https://zenodo.org/api/records") -> None:
         self.record_id = record_id
+        self.url = url
 
     def download(
         self,
@@ -156,7 +157,7 @@ class ZenodoDownloader(BaseDownloader):
 
     @property
     def files_info(self) -> list[dict]:
-        resp = requests.get(f"https://zenodo.org/api/records/{self.record_id}")
+        resp = requests.get(f"{self.url}/{self.record_id}")
         resp.raise_for_status()
         if len(resp.json()["files"]) == 0:
             msg = f"No files found for Zenodo record {self.record_id}"

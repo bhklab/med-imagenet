@@ -302,7 +302,7 @@ class Collection:
             case S3Source():
                 return S3Downloader(self.source_config.bucket_name)
             case ZenodoSource():
-                return ZenodoDownloader(self.source_config.record_id)
+                return ZenodoDownloader(self.source_config.record_id, self.source_config.url)
             case HuggingFaceSource():
                 return HuggingFaceDownloader(self.source_config.repo_id)
             case DropboxSource():
