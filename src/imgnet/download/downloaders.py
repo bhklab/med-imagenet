@@ -244,13 +244,13 @@ class LMUMunichDownloader(BaseDownloader):
 
     @property
     def files_info(self) -> list[dict]:
-        resp = requests.get(f"{self.url}/{self.record_id}")
+        resp = requests.get(f"{self.url}/{self.record_id}/files")
         resp.raise_for_status()
-        if len(resp.json()["files"]["entries"]) == 0:
+        if len(resp.json()["entries"]) == 0:
             msg = f"No files found for Zenodo record {self.record_id}"
             raise FileNotFoundError(msg)
 
-        return resp.json()["files"]["entries"]
+        return resp.json()["entries"]
 
     @property
     def size(self) -> float:
