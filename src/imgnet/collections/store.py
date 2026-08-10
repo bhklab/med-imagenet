@@ -20,6 +20,7 @@ from imgnet.collections.source import (
     TCIASource,
     PrivateTCIASource,
     ZenodoSource,
+    LMUMunichSource,
     source_adapter,
 )
 from imgnet.collections.utils import (
@@ -35,6 +36,7 @@ from imgnet.download.downloaders import (
     NBIADownloader,
     S3Downloader,
     ZenodoDownloader,
+    LMUMunichDownloader
 )
 from imgnet.loggers import logger, tqdm_logging_redirect
 
@@ -302,7 +304,9 @@ class Collection:
             case S3Source():
                 return S3Downloader(self.source_config.bucket_name)
             case ZenodoSource():
-                return ZenodoDownloader(self.source_config.record_id, self.source_config.url)
+                return ZenodoDownloader(self.source_config.record_id)
+            case LMUMunichSource():
+                return LMUMunichDownloader(self.source_config.record_id)
             case HuggingFaceSource():
                 return HuggingFaceDownloader(self.source_config.repo_id)
             case DropboxSource():

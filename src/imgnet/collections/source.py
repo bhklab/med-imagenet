@@ -54,7 +54,14 @@ class ZenodoSource(BaseModel):
     file_type: FileType
     source: Literal["zenodo"] = "zenodo"
     record_id: str
-    url: str = "https://zenodo.org/api/records"
+    filenames: list[str] | None = None
+    post_download: list[str] = Field(default_factory=lambda: ["unzip"])
+    description: str = Field(default="")
+
+class LMUMunichSource(BaseModel):
+    file_type: FileType
+    source: Literal["lmu munich"] = "lmu munich"
+    record_id: str
     filenames: list[str] | None = None
     post_download: list[str] = Field(default_factory=lambda: ["unzip"])
     description: str = Field(default="")

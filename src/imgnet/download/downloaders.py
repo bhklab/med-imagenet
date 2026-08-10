@@ -100,7 +100,7 @@ class HuggingFaceDownloader(BaseDownloader):
 
 
 class ZenodoDownloader(BaseDownloader):
-    def __init__(self, record_id: str, url: str = "https://zenodo.org/api/records") -> None:
+    def __init__(self, record_id: str, url: str) -> None:
         self.record_id = record_id
         self.url = url
 
@@ -186,6 +186,93 @@ class ZenodoDownloader(BaseDownloader):
 
         return list(set(updated_file_names))
 
+
+class LMUMunichDownloader(BaseDownloader):
+    def __init__(self, record_id: str) -> None:
+        self.record_id = record_id
+        self.url = "https://fdat.uni-tuebingen.de/api/records"
+
+    def download(
+        self,
+        output_path: Path,
+        instance_ids: list[str] | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
+        """Download files from Ludwig-Maximilians-University Munich. Here instance_ids is a list of filenames to download."""
+        output_path.mkdir(parents=True, exist_ok=True)
+        files = self.files_info
+
+        if instance_ids is None:
+            files_to_download = files
+            logger.info(
+                f"Downloading all files from LMU Munich record {self.record_id}"
+            )
+        else:
+            logger.info(
+                f"Downloading {len(instance_ids)} files from LMU Munich record {self.record_id}"
+            )
+            remaining = set(instance_ids)
+            files_to_download = []
+
+            for file_info in files:
+                file_name = file_info["key"]
+                if file_name in remaining:
+                    files_to_download.append(file_info)
+                    remaining.remove(file_name)
+                    continue
+
+                if RemoteArchive.is_supported_archive(file_name) and remaining:
+                    archive = RemoteArchive(
+                        file_info["links"]["self"], Path(file_name).suffix
+                    )
+                    extracted = archive.extract(
+                        filenames=sorted(remaining),
+                        output_path=output_path,
+                    )
+                    remaining -= set(extracted)
+
+            if remaining:
+                msg = f"Instance IDs {sorted(remaining)} not found in LMU Munich record {self.record_id}"
+                logger.warning(msg)
+
+        for file_info in files_to_download:
+            _download_http_file(
+                url=file_info["links"]["self"],
+                out_file=output_path / file_info["key"],
+                desc=file_info["key"],
+                size=file_info["size"],
+            )
+
+    @property
+    def files_info(self) -> list[dict]:
+        resp = requests.get(f"{self.url}/{self.record_id}")
+        resp.raise_for_status()
+        if len(resp.json()["files"]["entries"]) == 0:
+            msg = f"No files found for Zenodo record {self.record_id}"
+            raise FileNotFoundError(msg)
+
+        return resp.json()["files"]["entries"]
+
+    @property
+    def size(self) -> float:
+        size = float(sum(f["size"] for f in self.files_info))
+        return round(size / 1000 / 1000 / 1000, 2)  # convert to GB
+
+    @property
+    def members(self) -> list[str]:
+        updated_file_names = []
+
+        for file_info in self.files_info:
+            file_name = file_info["key"]
+            if RemoteArchive.is_supported_archive(file_name):
+                archive = RemoteArchive(
+                    file_info["links"]["self"], Path(file_name).suffix
+                )
+                updated_file_names.extend(archive.members)
+            else:
+                updated_file_names.append(file_name)
+
+        return list(set(updated_file_names))
 
 class DropboxDownloader(BaseDownloader):
     def __init__(self, url: str) -> None:
