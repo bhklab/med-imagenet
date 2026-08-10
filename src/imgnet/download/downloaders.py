@@ -100,7 +100,7 @@ class HuggingFaceDownloader(BaseDownloader):
 
 
 class ZenodoDownloader(BaseDownloader):
-    def __init__(self, record_id: str, url: str) -> None:
+    def __init__(self, record_id: str) -> None:
         self.record_id = record_id
         self.url = "https://zenodo.org/api/records"
 
