@@ -18,7 +18,9 @@ from imgnet.collections.source import (
     S3Source,
     SourceConfig,
     TCIASource,
+    GoogleDriveSource,
     PrivateTCIASource,
+    GitHubSource,
     ZenodoSource,
     LMUMunichSource,
     source_adapter,
@@ -36,7 +38,9 @@ from imgnet.download.downloaders import (
     NBIADownloader,
     S3Downloader,
     ZenodoDownloader,
-    LMUMunichDownloader
+    LMUMunichDownloader,
+    GoogleDriveDownloader,
+    GitHubDownloader
 )
 from imgnet.loggers import logger, tqdm_logging_redirect
 
@@ -311,6 +315,10 @@ class Collection:
                 return HuggingFaceDownloader(self.source_config.repo_id)
             case DropboxSource():
                 return DropboxDownloader(self.source_config.url)
+            case GitHubSource():
+                return GitHubDownloader(self.source_config.url)
+            case GoogleDriveSource():
+                return GoogleDriveDownloader(self.source_config.url)
 
     @functools.cached_property
     def summary(self) -> dict:
