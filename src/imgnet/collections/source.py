@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, TypeAdapter, model_validator
 
 from typing import List
 from pathlib import Path
-from pydantic import Field, Literal
+from pydantic import Field
 
 from imgnet.download.base import BaseDownloader
 from imgnet.download.downloaders import (
