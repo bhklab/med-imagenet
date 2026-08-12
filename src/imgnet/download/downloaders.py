@@ -787,3 +787,47 @@ class GoogleDriveDownloader(BaseDownloader):
         
         return [file_name]
 
+
+class CompositeDownloader(BaseDownloader):
+    def __init__(self, downloaders: list[BaseDownloader]):
+        self.downloaders = downloaders
+        self._size = None
+        self._members = None
+    @property
+    def members(self) -> list[str]:
+        if self._members is None:
+            result = []
+            for downloader in self.downloaders:
+                result.extend(downloader.members)
+            self._members = result
+        return self._members  # Always return, even if empty
+    @property
+    def size(self) -> float:
+        if self._size is None:
+            self._size = sum(downloader.size for downloader in self.downloaders)
+        return self._size
+    def download(self,
+            output_path: Path,
+            instance_ids: list[str] | None = None,
+            **kwargs: Any
+        ) -> None:
+        """
+        Download from all sources.
+        
+        If instance_ids is provided, each downloader will only download files
+        that match the requested IDs. IDs not found in any source are ignored.
+        """
+        output_path.mkdir(parents=True, exist_ok=True)
+        if instance_ids is None:
+            for downloader in self.downloaders:
+                downloader.download(output_path, **kwargs)
+        else:
+            for downloader in self.downloaders:
+                members = downloader.members
+                ids = [id for id in instance_ids if id in members]
+                if len(ids) > 0:
+                    downloader.download(output_path, instance_ids=ids, **kwargs)
+
+        
+
+

@@ -287,9 +287,9 @@ class Collection:
             client = get_idc_client()
             public_collections = client.get_collections()
             if _convert_tcia_collection_name_to_idc(self.name) in public_collections:
-                return TCIASource()
+                return TCIASource(name=self.name)
             else:
-                return PrivateTCIASource()
+                return PrivateTCIASource(name=self.name)
         return source_adapter.validate_python(
             orjson.loads(config_path.read_bytes())
         )
@@ -300,25 +300,26 @@ class Collection:
 
     @property
     def downloader(self) -> BaseDownloader:
-        match self.source_config:
-            case TCIASource():
-                return IDCDownloader(self.name)
-            case PrivateTCIASource():
-                return NBIADownloader(self.name)
-            case S3Source():
-                return S3Downloader(self.source_config.bucket_name)
-            case ZenodoSource():
-                return ZenodoDownloader(self.source_config.record_id)
-            case LMUMunichSource():
-                return LMUMunichDownloader(self.source_config.record_id)
-            case HuggingFaceSource():
-                return HuggingFaceDownloader(self.source_config.repo_id)
-            case DropboxSource():
-                return DropboxDownloader(self.source_config.url)
-            case GitHubSource():
-                return GitHubDownloader(self.source_config.url)
-            case GoogleDriveSource():
-                return GoogleDriveDownloader(self.source_config.url)
+        return self.source_config.get_downloader()
+        # match self.source_config:
+        #     case TCIASource():
+        #         return IDCDownloader(self.name)
+        #     case PrivateTCIASource():
+        #         return NBIADownloader(self.name)
+        #     case S3Source():
+        #         return S3Downloader(self.source_config.bucket_name)
+        #     case ZenodoSource():
+        #         return ZenodoDownloader(self.source_config.record_id)
+        #     case LMUMunichSource():
+        #         return LMUMunichDownloader(self.source_config.record_id)
+        #     case HuggingFaceSource():
+        #         return HuggingFaceDownloader(self.source_config.repo_id)
+        #     case DropboxSource():
+        #         return DropboxDownloader(self.source_config.url)
+        #     case GitHubSource():
+        #         return GitHubDownloader(self.source_config.repo_id)
+        #     case GoogleDriveSource():
+        #         return GoogleDriveDownloader(self.source_config.url)
 
     @functools.cached_property
     def summary(self) -> dict:
