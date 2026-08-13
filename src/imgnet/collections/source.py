@@ -131,6 +131,14 @@ class HuggingFaceSource(BaseSource):
     def get_downloader(self)-> BaseDownloader:
             return HuggingFaceDownloader(self.repo_id)
 
+# Define SourceConfig WITHOUT CompositeSource initially
+SourceConfig = Annotated[
+    TCIASource | DropboxSource | S3Source | ZenodoSource | 
+    HuggingFaceSource | LMUMunichSource | GoogleDriveSource | 
+    GitHubSource,  # No CompositeSource yet!
+    Field(discriminator="source"),
+]
+
 class CompositeSource(BaseSource):
     """A source that combines one or more other sources."""
     source: Literal["composite"] = "composite"
@@ -167,8 +175,13 @@ class CompositeSource(BaseSource):
 
 
 SourceConfig = Annotated[
-    TCIASource | DropboxSource | S3Source | ZenodoSource | HuggingFaceSource | LMUMunichSource | GoogleDriveSource | GitHubSource | CompositeSource,
+    TCIASource | DropboxSource | S3Source | ZenodoSource | 
+    HuggingFaceSource | LMUMunichSource | GoogleDriveSource | 
+    GitHubSource | CompositeSource,  # Now include CompositeSource
     Field(discriminator="source"),
 ]
+
+# Update forward references in CompositeSource
+CompositeSource.model_rebuild()  # This rebuilds the model with the new SourceConfig
 
 source_adapter: TypeAdapter[SourceConfig] = TypeAdapter(SourceConfig)
