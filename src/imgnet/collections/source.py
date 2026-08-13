@@ -142,7 +142,7 @@ SourceConfig = Annotated[
 class CompositeSource(BaseSource):
     """A source that combines one or more other sources."""
     source: Literal["composite"] = "composite"
-    sources: List[BaseSource]  # List of any valid sources
+    sources: List[SourceConfig]  # List of any valid sources
     # Inherits file_type, post_download, description from BaseSource
     
     def get_downloader(self) -> BaseDownloader:
