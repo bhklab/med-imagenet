@@ -29,6 +29,7 @@ class FileType(Enum):
 class BaseSource(BaseModel):
     file_type: FileType
     post_download: list[str] = Field(default_factory=lambda: ["unzip"])
+    source: str
 
     @abstractmethod
     def get_downloader(self) -> BaseDownloader:
