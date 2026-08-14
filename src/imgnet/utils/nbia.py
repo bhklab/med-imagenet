@@ -20,7 +20,8 @@ class NBIAClientWrapper:
         """Authenticate with TCIA."""
         print("authenticating")
         if not self._authenticated:
-            nbia.getToken(user=self.username, pw=self.password)
+            # NBIA doesn't do private access anymore.
+            #nbia.getToken(user=self.username, pw=self.password)
             self._authenticated = True
     
     def downloadSeries(self, series_uids: list[str], path: str):

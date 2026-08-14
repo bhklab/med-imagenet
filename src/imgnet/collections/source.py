@@ -16,7 +16,6 @@ from imgnet.download.downloaders import (
     S3Downloader,
     ZenodoDownloader,
     LMUMunichDownloader,
-    GoogleDriveDownloader,
     GitHubDownloader,
     CompositeDownloader
 )
@@ -64,16 +63,6 @@ class DropboxSource(BaseSource):
 
     def get_downloader(self)-> BaseDownloader:
             return DropboxDownloader(self.url)
-
-class GoogleDriveSource(BaseSource):
-    file_type: FileType
-    source: Literal["google drive"] = "google drive"
-    url: str
-    post_download: list[str] = Field(default_factory=lambda: ["unzip"])
-    description: str = Field(default="")
-
-    def get_downloader(self)-> BaseDownloader:
-            return GoogleDriveDownloader(self.url)
     
 class GitHubSource(BaseSource):
     file_type: FileType
@@ -134,7 +123,7 @@ class HuggingFaceSource(BaseSource):
 # Define SourceConfig WITHOUT CompositeSource initially
 SourceConfig = Annotated[
     TCIASource | DropboxSource | S3Source | ZenodoSource | 
-    HuggingFaceSource | LMUMunichSource | GoogleDriveSource | 
+    HuggingFaceSource | LMUMunichSource | 
     GitHubSource,  # No CompositeSource yet!
     Field(discriminator="source"),
 ]
@@ -176,7 +165,7 @@ class CompositeSource(BaseSource):
 
 SourceConfig = Annotated[
     TCIASource | DropboxSource | S3Source | ZenodoSource | 
-    HuggingFaceSource | LMUMunichSource | GoogleDriveSource | 
+    HuggingFaceSource | LMUMunichSource | 
     GitHubSource | CompositeSource,  # Now include CompositeSource
     Field(discriminator="source"),
 ]

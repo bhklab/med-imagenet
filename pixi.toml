@@ -13,7 +13,7 @@ python = ">=3.10,<3.14"
 
 [pypi-dependencies]
 med-imagenet = { path = ".", editable = true }
-tcia_utils = { git = "https://github.com/DeclanKorda/tcia_utils_private_access.git", branch = "DeclanKorda/reintroduce-private-nbia-access" }
+#tcia_utils = { git = "https://github.com/DeclanKorda/tcia_utils_private_access.git", branch = "DeclanKorda/reintroduce-private-nbia-access" }
 
 [environments]
 docs = { features = ["docs"] }
