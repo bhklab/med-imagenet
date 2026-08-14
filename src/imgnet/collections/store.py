@@ -292,23 +292,6 @@ class Collection:
     @property
     def downloader(self) -> BaseDownloader:
         return self.source_config.get_downloader()
-        # match self.source_config:
-        #     case TCIASource():
-        #         return IDCDownloader(self.name)
-        #     case PrivateTCIASource():
-        #         return NBIADownloader(self.name)
-        #     case S3Source():
-        #         return S3Downloader(self.source_config.bucket_name)
-        #     case ZenodoSource():
-        #         return ZenodoDownloader(self.source_config.record_id)
-        #     case LMUMunichSource():
-        #         return LMUMunichDownloader(self.source_config.record_id)
-        #     case HuggingFaceSource():
-        #         return HuggingFaceDownloader(self.source_config.repo_id)
-        #     case DropboxSource():
-        #         return DropboxDownloader(self.source_config.url)
-        #     case GitHubSource():
-        #         return GitHubDownloader(self.source_config.repo_id)
 
     @functools.cached_property
     def summary(self) -> dict:

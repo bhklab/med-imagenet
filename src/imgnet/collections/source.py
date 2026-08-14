@@ -43,16 +43,6 @@ class TCIASource(BaseSource):
     def get_downloader(self)-> BaseDownloader:
         return IDCDownloader(self.name)
 
-
-class PrivateTCIASource(BaseSource):
-    name: str
-    file_type: FileType = FileType.DICOM
-    source: Literal["private_tcia"] = "private_tcia"
-    post_download: list[str] = Field(default_factory=lambda: ["unzip"])
-
-    def get_downloader(self)-> BaseDownloader:
-            return NBIADownloader(self.name)
-
 class DropboxSource(BaseSource):
     file_type: FileType
     source: Literal["dropbox"] = "dropbox"
