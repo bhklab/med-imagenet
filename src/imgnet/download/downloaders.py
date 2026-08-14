@@ -14,7 +14,7 @@ import shutil
 from imgnet.download.base import BaseDownloader
 from imgnet.download.utils import _download_http_file
 from imgnet.loggers import logger, tqdm_logging_redirect
-from imgnet.utils import RemoteArchive, get_idc_client, get_nbia_client
+from imgnet.utils import RemoteArchive, get_idc_client
 
 
 os.environ["HF_HUB_DISABLE_XET"] = "1"
@@ -485,53 +485,6 @@ class IDCDownloader(BaseDownloader):
             "list[str]",
             self.client.sql_query(query)["SeriesInstanceUID"].tolist(),
         )
-    
-class NBIADownloader(BaseDownloader):
-    def __init__(self, collection_id: str) -> None:
-        self.collection_id = collection_id
-        self.client = get_nbia_client()
-        self._members = [item['SeriesInstanceUID'] for item in self.client.getSeries(self.collection_id)]
-
-
-    def download(
-        self,
-        output_path: Path,
-        instance_ids: list[str] | None = None,
-        **kwargs: Any,  # noqa: ANN401
-    ) -> None:
-        """Download from NBIA. Here instance_ids is a list of series UIDs to download."""
-
-        if instance_ids is not None:
-            if not all(
-                instance_id in self.members for instance_id in instance_ids
-            ):
-                msg = f"Instance IDs {instance_ids} not found in private TCIA collection {self.collection_id}"
-                raise ValueError(msg)
-            series_uids = instance_ids
-        else:
-            logger.warning(
-                f"No instance IDs provided, downloading all series from private TCIA collection {self.collection_id}"
-            )
-            series_uids = self.members
-        series_uids = [{"SeriesInstanceUID": uid} for uid in series_uids]
-        Path(output_path).mkdir(parents=True, exist_ok=True)
-        with tqdm_logging_redirect():
-            self.client.downloadSeries(
-                series_uids,
-                output_path
-            )
-
-    @property
-    def size(self) -> float:
-        return round(sum([item['FileSize'] for item in self.client.getSeries(self.collection_id)]) / 1000 ** 3, 2) # convert to GB
-
-    @property
-    def members(self) -> list[str]:
-        return self._members
-
-
-
-
 class GitHubDownloader(BaseDownloader):
     def __init__(self, repo_id: str) -> None:
         """

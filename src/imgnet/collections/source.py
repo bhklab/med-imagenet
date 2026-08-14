@@ -12,7 +12,6 @@ from imgnet.download.downloaders import (
     DropboxDownloader,
     HuggingFaceDownloader,
     IDCDownloader,
-    NBIADownloader,
     S3Downloader,
     ZenodoDownloader,
     LMUMunichDownloader,

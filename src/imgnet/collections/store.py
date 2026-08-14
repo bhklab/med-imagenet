@@ -18,7 +18,6 @@ from imgnet.collections.source import (
     S3Source,
     SourceConfig,
     TCIASource,
-    PrivateTCIASource,
     GitHubSource,
     ZenodoSource,
     LMUMunichSource,
@@ -34,7 +33,6 @@ from imgnet.download.downloaders import (
     DropboxDownloader,
     HuggingFaceDownloader,
     IDCDownloader,
-    NBIADownloader,
     S3Downloader,
     ZenodoDownloader,
     LMUMunichDownloader,
@@ -282,12 +280,7 @@ class Collection:
         """Return the validated source config. Falls back to TCIASource() when source.json is missing."""
         config_path = self.path / "source.json"
         if not config_path.exists():
-            client = get_idc_client()
-            public_collections = client.get_collections()
-            if _convert_tcia_collection_name_to_idc(self.name) in public_collections:
-                return TCIASource(name=self.name)
-            else:
-                return PrivateTCIASource(name=self.name)
+            return TCIASource(name=self.name)
         return source_adapter.validate_python(
             orjson.loads(config_path.read_bytes())
         )
