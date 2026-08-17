@@ -15,7 +15,6 @@ from imgnet.download.downloaders import (
     IDCDownloader,
     S3Downloader,
     ZenodoDownloader,
-    LMUMunichDownloader,
     GitHubDownloader,
     CompositeDownloader
 )

@@ -12,15 +12,10 @@ import pyarrow.dataset as ds
 from tqdm import tqdm
 
 from imgnet.collections.source import (
-    DropboxSource,
     FileType,
-    HuggingFaceSource,
-    S3Source,
     SourceConfig,
     TCIASource,
-    GitHubSource,
-    ZenodoSource,
-    LMUMunichSource,
+
     source_adapter,
 )
 from imgnet.collections.utils import (
@@ -29,15 +24,7 @@ from imgnet.collections.utils import (
     _convert_tcia_collection_name_to_idc
 )
 from imgnet.download.base import BaseDownloader
-from imgnet.download.downloaders import (
-    DropboxDownloader,
-    HuggingFaceDownloader,
-    IDCDownloader,
-    S3Downloader,
-    ZenodoDownloader,
-    LMUMunichDownloader,
-    GitHubDownloader
-)
+
 from imgnet.loggers import logger, tqdm_logging_redirect
 
 from imgnet.utils import get_idc_client
