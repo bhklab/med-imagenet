@@ -11,6 +11,7 @@ from imgnet.download.base import BaseDownloader
 from imgnet.download.downloaders import (
     DropboxDownloader,
     HuggingFaceDownloader,
+    HttpDownloader,
     IDCDownloader,
     S3Downloader,
     ZenodoDownloader,
@@ -52,6 +53,16 @@ class DropboxSource(BaseSource):
 
     def get_downloader(self)-> BaseDownloader:
             return DropboxDownloader(self.url)
+
+class HttpSource(BaseSource):
+    file_type: FileType
+    source: Literal["http"] = "http"
+    url: str
+    post_download: list[str] = Field(default_factory=lambda: ["unzip"])
+    description: str = Field(default="")
+
+    def get_downloader(self) -> BaseDownloader:
+        return HttpDownloader(self.url)
     
 class GitHubSource(BaseSource):
     file_type: FileType
@@ -111,7 +122,7 @@ class HuggingFaceSource(BaseSource):
 
 # Define SourceConfig WITHOUT CompositeSource initially
 SourceConfig = Annotated[
-    TCIASource | DropboxSource | S3Source | ZenodoSource | 
+    TCIASource | DropboxSource | HttpSource | S3Source | ZenodoSource | 
     HuggingFaceSource | LMUMunichSource | 
     GitHubSource,  # No CompositeSource yet!
     Field(discriminator="source"),
@@ -153,7 +164,7 @@ class CompositeSource(BaseSource):
 
 
 SourceConfig = Annotated[
-    TCIASource | DropboxSource | S3Source | ZenodoSource | 
+    TCIASource | DropboxSource | HttpSource | S3Source | ZenodoSource | 
     HuggingFaceSource | LMUMunichSource | 
     GitHubSource | CompositeSource,  # Now include CompositeSource
     Field(discriminator="source"),
