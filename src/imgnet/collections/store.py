@@ -12,28 +12,22 @@ import pyarrow.dataset as ds
 from tqdm import tqdm
 
 from imgnet.collections.source import (
-    DropboxSource,
     FileType,
-    HuggingFaceSource,
-    S3Source,
     SourceConfig,
     TCIASource,
-    ZenodoSource,
+
     source_adapter,
 )
 from imgnet.collections.utils import (
     _default_indexed_datasets_path,
     _fetch_collection_description_tcia,
+    _convert_tcia_collection_name_to_idc
 )
 from imgnet.download.base import BaseDownloader
-from imgnet.download.downloaders import (
-    DropboxDownloader,
-    HuggingFaceDownloader,
-    IDCDownloader,
-    S3Downloader,
-    ZenodoDownloader,
-)
+
 from imgnet.loggers import logger, tqdm_logging_redirect
+
+from imgnet.utils import get_idc_client
 
 
 def _unknown_collection_message(known: list[str], name: str) -> str:
@@ -273,7 +267,7 @@ class Collection:
         """Return the validated source config. Falls back to TCIASource() when source.json is missing."""
         config_path = self.path / "source.json"
         if not config_path.exists():
-            return TCIASource()
+            return TCIASource(name=self.name)
         return source_adapter.validate_python(
             orjson.loads(config_path.read_bytes())
         )
@@ -284,17 +278,7 @@ class Collection:
 
     @property
     def downloader(self) -> BaseDownloader:
-        match self.source_config:
-            case TCIASource():
-                return IDCDownloader(self.name)
-            case S3Source():
-                return S3Downloader(self.source_config.bucket_name)
-            case ZenodoSource():
-                return ZenodoDownloader(self.source_config.record_id)
-            case HuggingFaceSource():
-                return HuggingFaceDownloader(self.source_config.repo_id)
-            case DropboxSource():
-                return DropboxDownloader(self.source_config.url)
+        return self.source_config.get_downloader()
 
     @functools.cached_property
     def summary(self) -> dict:

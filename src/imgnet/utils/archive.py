@@ -7,10 +7,12 @@ from typing import IO, cast
 from urllib.parse import urlparse
 
 import fsspec
+from tqdm import tqdm
 
 from imgnet.loggers import logger
 
-SUPPORTED_EXTENSIONS = [".zip", ".tar"]
+SUPPORTED_EXTENSIONS = [".zip", ".tar", ".tar.gz", ".tgz"]
+TAR_EXTENSIONS = {".tar", ".tar.gz", ".tgz"}
 
 
 class RemoteArchive:
@@ -18,23 +20,49 @@ class RemoteArchive:
         self.url = url
 
         if archive_extension not in SUPPORTED_EXTENSIONS:
-            msg = f"Invalid zip extension: {archive_extension}"
+            msg = f"Invalid archive extension: {archive_extension}"
             raise ValueError(msg)
         self.archive_extension = archive_extension
+
+    @classmethod
+    def archive_extension_from(cls, path_or_url: str) -> str | None:
+        """Return the supported archive extension for a path/URL, or None."""
+        name = Path(urlparse(path_or_url).path).name.lower()
+        for ext in sorted(SUPPORTED_EXTENSIONS, key=len, reverse=True):
+            if name.endswith(ext):
+                return ext
+        return None
+
+    @classmethod
+    def require_extension(cls, path_or_url: str) -> str:
+        """Return the supported archive extension, or raise if unsupported."""
+        ext = cls.archive_extension_from(path_or_url)
+        if ext is None:
+            msg = f"Unsupported archive: {path_or_url}"
+            raise ValueError(msg)
+        return ext
+
+    @classmethod
+    def archive_stem(cls, path_or_url: str) -> str:
+        """Return the archive filename stem, handling compound suffixes like .tar.gz."""
+        name = Path(urlparse(path_or_url).path).name
+        name_lower = name.lower()
+        for ext in sorted(SUPPORTED_EXTENSIONS, key=len, reverse=True):
+            if name_lower.endswith(ext):
+                return name[: -len(ext)]
+        return Path(name).stem
 
     @property
     def members(self) -> list[str]:
         if self.archive_extension == ".zip":
             return self._members_zip()
-        if self.archive_extension == ".tar":
+        if self.archive_extension in TAR_EXTENSIONS:
             return self._members_tar()
         return []
 
     @classmethod
     def is_supported_archive(cls, url_or_filename: str) -> bool:
-        return (
-            Path(urlparse(url_or_filename).path).suffix in SUPPORTED_EXTENSIONS
-        )
+        return cls.archive_extension_from(url_or_filename) is not None
 
     @property
     def supported_extensions(self) -> list[str]:
@@ -80,7 +108,7 @@ class RemoteArchive:
         """To speed up the extraction, we can check if the filename root is the same as the url filename stem.
         If it is, we can skip the extraction.
         """
-        url_stem = self.archive_file.stem
+        url_stem = self.archive_stem(str(self.archive_file))
         return Path(filename).parts[0] == url_stem
 
     def check_tar_filenames(self, filenames: list[str]) -> list[str]:
@@ -136,7 +164,7 @@ class RemoteArchive:
     ) -> list[str]:
         if self.archive_extension == ".zip":
             return self._extract_zip(filenames, output_path)
-        if self.archive_extension == ".tar":
+        if self.archive_extension in TAR_EXTENSIONS:
             return self._extract_tar(filenames, output_path)
         return []
 
@@ -151,8 +179,16 @@ class RemoteArchive:
 
     def _members_tar(self) -> list[str]:
         logger.warning(
-            "Extracting members from tar file, this may take a while..."
+            "Listing members from tar file, this may take a while..."
         )
         with self._open_archive() as archive_obj:  # noqa: SIM117
             with tarfile.open(fileobj=archive_obj, mode="r|*") as tar_ref:
-                return [member.name for member in tar_ref if member.isfile()]
+                return [
+                    member.name
+                    for member in tqdm(
+                        tar_ref,
+                        desc=f"Listing {self.archive_file.name}",
+                        unit="member",
+                    )
+                    if member.isfile()
+                ]
