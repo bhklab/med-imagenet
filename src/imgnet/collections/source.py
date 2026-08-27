@@ -96,19 +96,6 @@ class ZenodoSource(BaseSource):
     def get_downloader(self)-> BaseDownloader:
             return ZenodoDownloader(self.record_id)
 
-class LMUMunichSource(BaseSource):
-    file_type: FileType
-    source: Literal["lmu munich"] = "lmu munich"
-    record_id: str
-    filenames: list[str] | None = None
-    post_download: list[str] = Field(default_factory=lambda: ["unzip"])
-    description: str = Field(default="")
-
-    def get_downloader(self)-> BaseDownloader:
-            return LMUMunichDownloader(self.record_id)
-
-
-
 class HuggingFaceSource(BaseSource):
     file_type: FileType
     source: Literal["huggingface"] = "huggingface"
@@ -122,7 +109,7 @@ class HuggingFaceSource(BaseSource):
 # Define SourceConfig WITHOUT CompositeSource initially
 SourceConfig = Annotated[
     TCIASource | DropboxSource | HttpSource | S3Source | ZenodoSource | 
-    HuggingFaceSource | LMUMunichSource | 
+    HuggingFaceSource |
     GitHubSource,  # No CompositeSource yet!
     Field(discriminator="source"),
 ]
@@ -164,7 +151,7 @@ class CompositeSource(BaseSource):
 
 SourceConfig = Annotated[
     TCIASource | DropboxSource | HttpSource | S3Source | ZenodoSource | 
-    HuggingFaceSource | LMUMunichSource | 
+    HuggingFaceSource | 
     GitHubSource | CompositeSource,  # Now include CompositeSource
     Field(discriminator="source"),
 ]

@@ -695,7 +695,7 @@ class CompositeDownloader(BaseDownloader):
     @property
     def size(self) -> float:
         if self._size is None:
-            self._size = sum(downloader.size for downloader in self.downloaders)
+            self._size = round(sum(downloader.size for downloader in self.downloaders), 2)
         return self._size
     def download(self,
             output_path: Path,
