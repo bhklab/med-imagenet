@@ -12,7 +12,11 @@ import tempfile
 import shutil
 
 from imgnet.download.base import BaseDownloader
-from imgnet.download.utils import _download_http_file
+from imgnet.download.utils import (
+    _TIMEOUT,
+    _download_http_file,
+    _http_session,
+)
 from imgnet.loggers import logger, tqdm_logging_redirect
 from imgnet.utils import RemoteArchive, get_idc_client
 
@@ -162,13 +166,17 @@ class ZenodoDownloader(BaseDownloader):
 
     @property
     def files_info(self) -> list[dict]:
-        resp = requests.get(f"{self.url}/{self.record_id}")
+        session = _http_session()
+        resp = session.get(
+            f"{self.url}/{self.record_id}", timeout=_TIMEOUT
+        )
         resp.raise_for_status()
-        if len(resp.json()["files"]) == 0:
+        files = resp.json()["files"]
+        if len(files) == 0:
             msg = f"No files found for Zenodo record {self.record_id}"
             raise FileNotFoundError(msg)
 
-        return resp.json()["files"]
+        return files
 
     @property
     def size(self) -> float:

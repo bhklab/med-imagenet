@@ -21,9 +21,8 @@ from imgnet.collections.source import (
 from imgnet.collections.utils import (
     _default_indexed_datasets_path,
     _fetch_collection_description_tcia,
-    _convert_tcia_collection_name_to_idc
 )
-from imgnet.download.base import BaseDownloader
+from imgnet.download import BaseDownloader, HuggingFaceDownloader
 
 from imgnet.loggers import logger, tqdm_logging_redirect
 
@@ -290,7 +289,13 @@ class Collection:
 
     @functools.cached_property
     def collection_size(self) -> float:
-        return self.downloader.size
+        try:
+            return self.downloader.size
+        except Exception as e:
+            logger.error(
+                f"Error getting size for collection {self.name}: {e}"
+            )
+            return 0.0
 
     @functools.cached_property
     def description(self) -> str:
