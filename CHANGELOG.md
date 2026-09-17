@@ -1,6 +1,13 @@
 # CHANGELOG
 
 
+## [0.4.0](https://github.com/bhklab/med-imagenet/compare/v0.3.1...v0.4.0) (2026-09-17)
+
+
+### Features
+
+* add more sources ([1e20c4e](https://github.com/bhklab/med-imagenet/commit/1e20c4e5772a77409a2aa8f9a5e2ab92d74e6202))
+
 ## [0.3.1](https://github.com/bhklab/med-imagenet/compare/v0.3.0...v0.3.1) (2026-07-13)
 
 
