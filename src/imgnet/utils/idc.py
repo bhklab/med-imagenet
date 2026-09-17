@@ -1,4 +1,4 @@
-"""Global IDC client used by the package for TCIA/IDC index and downloads."""
+"""Global IDC client used by the package for public TCIA/IDC index and downloads."""
 
 import threading
 
