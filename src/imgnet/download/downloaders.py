@@ -96,7 +96,6 @@ class HuggingFaceDownloader(BaseDownloader):
         if used_storage is None:
             return 0.0
         return round(float(used_storage) / 1000 / 1000 / 1000, 2)  # convert to GB
-
     @property
     def members(self) -> list[str]:
         from huggingface_hub import HfApi
@@ -104,7 +103,32 @@ class HuggingFaceDownloader(BaseDownloader):
         api = HfApi()
         info = api.dataset_info(self.repo_id)
         siblings = info.siblings or []
-        return [sibling.rfilename for sibling in siblings]
+        top_level = [sibling.rfilename for sibling in siblings]
+
+        members: list[str] = []
+        for file_name in top_level:
+            if not RemoteArchive.is_supported_archive(file_name):
+                members.append(file_name)
+                continue
+
+            # Keep the archive itself as a member (so you can still request it directly).
+            members.append(file_name)
+
+            archive_url = hf_hub_url(
+                repo_id=self.repo_id,
+                filename=file_name,
+                repo_type="dataset",
+            )
+            archive = RemoteArchive(
+                archive_url,
+                RemoteArchive.require_extension(file_name),
+            )
+            try:
+                members.extend(archive.members)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"Failed to list members of {file_name}: {e}")
+
+        return members
 
 
 class ZenodoDownloader(BaseDownloader):
@@ -724,6 +748,8 @@ class CompositeDownloader(BaseDownloader):
             for downloader in self.downloaders:
                 members = downloader.members
                 ids = [id for id in instance_ids if id in members]
+                logger.info(f"members for {type(self.downloaders)}: \n {members}")
+                logger.info(f"ids accepted: {ids}")
                 if len(ids) > 0:
                     downloader.download(output_path, instance_ids=ids, **kwargs)
 

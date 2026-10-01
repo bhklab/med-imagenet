@@ -46,12 +46,10 @@ class RemoteArchive:
     def archive_stem(cls, path_or_url: str) -> str:
         """Return the archive filename stem, handling compound suffixes like .tar.gz."""
         name = Path(urlparse(path_or_url).path).name
-        name_lower = name.lower()
-        for ext in sorted(SUPPORTED_EXTENSIONS, key=len, reverse=True):
-            if name_lower.endswith(ext):
-                return name[: -len(ext)]
-        return Path(name).stem
-
+        ext = cls.archive_extension_from(name)
+        if ext is None:
+            return Path(name).stem
+        return name[: -len(ext)]
     @property
     def members(self) -> list[str]:
         if self.archive_extension == ".zip":
@@ -129,7 +127,9 @@ class RemoteArchive:
         # WARNING: This is a BIG assumption to speed up the extraction.
         # Only extract the files that the filename roots are the same as the url filename stem.
         # For example, if the file name is "Task01_BrainTumour/imagesTr/BRATS_001.nii.gz"
-        # Only extract a RemoteArcive that looks like "s3://msd-for-monai/Task01_BrainTumour.tar".
+        # Only extract a RemoteArchive that looks like "s3://msd-for-monai/Task01_BrainTumour.tar".
+
+        stem = self.archive_stem(str(self.archive_file))
         if filenames:
             filenames_to_extract = self.check_tar_filenames(filenames)
             if len(filenames_to_extract) == 0:
@@ -141,12 +141,17 @@ class RemoteArchive:
         with self._open_archive() as archive_obj:  # noqa: SIM117
             with tarfile.open(fileobj=archive_obj, mode="r|*") as tar_ref:
                 if filenames:
-                    target_names = set(filenames)
+                    # Strip the archive stem prefix so prefixed IDs from `_members_tar`
+                    # match the raw `member.name` values in the tar.
+                    target_names = {
+                        f[len(stem) + 1 :] if f.startswith(f"{stem}/") else f
+                        for f in filenames
+                    }
                     logger.info(f"Extracting {filenames} from {self.url}")
                     for member in tar_ref:
                         if member.name in target_names:
                             tar_ref.extract(member, dest)
-                            extracted.append(member.name)
+                            extracted.append(f"{stem}/{member.name}")
                             if len(extracted) == len(target_names):
                                 break
                 else:
@@ -154,7 +159,7 @@ class RemoteArchive:
                     for member in tar_ref:
                         tar_ref.extract(member, dest)
                         if member.isfile():
-                            extracted.append(member.name)
+                            extracted.append(f"{stem}/{member.name}")
         return extracted
 
     def extract(
@@ -182,9 +187,10 @@ class RemoteArchive:
             "Listing members from tar file, this may take a while..."
         )
         with self._open_archive() as archive_obj:  # noqa: SIM117
+            name = self.archive_stem(str(self.archive_file))
             with tarfile.open(fileobj=archive_obj, mode="r|*") as tar_ref:
                 return [
-                    member.name
+                    f"{name}/{member.name}"
                     for member in tqdm(
                         tar_ref,
                         desc=f"Listing {self.archive_file.name}",
