@@ -52,7 +52,7 @@ class HuggingFaceDownloader(BaseDownloader):
             files_to_download = []
             remaining = set(instance_ids)
 
-            for file_name in self._top_level_members():
+            for file_name in self._top_level_members:
                 if file_name in remaining:
                     files_to_download.append(file_name)
                     remaining.discard(file_name)
@@ -108,6 +108,7 @@ class HuggingFaceDownloader(BaseDownloader):
                     repo_type="dataset",
                     **kwargs,
                 )
+
     @property
     def size(self) -> float:
         from huggingface_hub import HfApi
@@ -118,6 +119,7 @@ class HuggingFaceDownloader(BaseDownloader):
         if used_storage is None:
             return 0.0
         return round(float(used_storage) / 1000 / 1000 / 1000, 2)  # convert to GB
+
     @property
     def members(self) -> list[str]:
         from huggingface_hub import HfApi
@@ -129,7 +131,6 @@ class HuggingFaceDownloader(BaseDownloader):
 
         members: list[str] = []
         for file_name in top_level:
-            logger.debug(f"file_name: {file_name}")
             if not RemoteArchive.is_supported_archive(file_name):
                 members.append(file_name)
                 continue
@@ -153,6 +154,7 @@ class HuggingFaceDownloader(BaseDownloader):
 
         return members
     
+    @property
     def _top_level_members(self) -> list[str]:
         """List top-level filenames in the repo without opening any archives."""
 

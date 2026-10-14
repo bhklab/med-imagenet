@@ -138,37 +138,35 @@ class RemoteArchive:
         # Only extract a RemoteArchive that looks like "s3://msd-for-monai/Task01_BrainTumour.tar".
 
         stem = self.archive_stem(str(self.archive_file))
-        # if filenames:
-        #     filenames_to_extract = self.check_tar_filenames(filenames)
-        #     if len(filenames_to_extract) == 0:
-        #         print("yeah")
-        #         return []
-        #     filenames = filenames_to_extract
+        stem_path = PurePosixPath(stem)
+
         filepath_map = {}
         dest = output_path if output_path is not None else Path()
         extracted: list[str] = []
+
         with self._open_archive() as archive_obj:  # noqa: SIM117
             with tarfile.open(fileobj=archive_obj, mode="r|*") as tar_ref:
                 if filenames:
                     # Strip the archive stem prefix so prefixed IDs from `_members_tar`
                     # match the raw `member.name` values in the tar.
-                    stem_parts = PurePosixPath(stem).parts
                     target_names = set()
-                    for f in filenames:
-                        target_name = f
-                        parts = PurePosixPath(f).parts
-                        if stem_parts == parts[:len(stem_parts)]:
-                            target_name = "/".join(parts[len(stem_parts):])
-                        elif stem in parts:  # stem appears somewhere later
-                            i = parts.index(stem)
-                            target_name = ("/".join(parts[i + 1:]))
+                    for filename in filenames:
+                        path = PurePosixPath(filename)
+
+                        if path.is_relative_to(stem_path):
+                            remainder = path.relative_to(stem_path)
+                            target_name = remainder.as_posix() if remainder.parts else ""
+                        elif stem in path.parts:
+                            tail = path.parts[path.parts.index(stem) + 1 :]
+                            target_name = PurePosixPath(*tail).as_posix() if tail else ""
                         else:
-                            target_name = f
+                            target_name = filename
+
                         target_names.add(target_name)
-                        filepath_map[target_name] = f
+                        filepath_map[target_name] = filename
+
                     logger.info(f"Extracting {filenames} from {self.url}")
                     for member in tar_ref:
-                        
                         if member.name in target_names:
                             tar_ref.extract(member, dest)
                             extracted.append(filepath_map[member.name])
@@ -179,7 +177,7 @@ class RemoteArchive:
                     for member in tar_ref:
                         tar_ref.extract(member, dest)
                         if member.isfile():
-                            extracted.append(f"{stem}/{member.name}")
+                            extracted.append((stem_path / member.name).as_posix())
         return extracted
 
     def extract(
@@ -218,5 +216,5 @@ class RemoteArchive:
                     )
                     if member.isfile()
                 ]
-                logger.info(f"\n\nARCHIVE_MEMBERS FOR {self.archive_file.name}: {out}\n\n")
+
                 return out
