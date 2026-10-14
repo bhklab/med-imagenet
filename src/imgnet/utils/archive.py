@@ -2,7 +2,7 @@ import tarfile
 import zipfile
 from collections.abc import Iterator
 from contextlib import contextmanager
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import IO, cast
 from urllib.parse import urlparse
 
@@ -50,6 +50,14 @@ class RemoteArchive:
         if ext is None:
             return Path(name).stem
         return name[: -len(ext)]
+    
+    @classmethod
+    def strip_extension(cls, filename: str) -> str:
+        filename = str(filename)
+        for ext in sorted(SUPPORTED_EXTENSIONS, key=len, reverse=True):
+            if filename.endswith(ext):
+                return filename[: -len(ext)]
+        return filename
     @property
     def members(self) -> list[str]:
         if self.archive_extension == ".zip":
@@ -130,12 +138,13 @@ class RemoteArchive:
         # Only extract a RemoteArchive that looks like "s3://msd-for-monai/Task01_BrainTumour.tar".
 
         stem = self.archive_stem(str(self.archive_file))
-        if filenames:
-            filenames_to_extract = self.check_tar_filenames(filenames)
-            if len(filenames_to_extract) == 0:
-                return []
-            filenames = filenames_to_extract
-
+        # if filenames:
+        #     filenames_to_extract = self.check_tar_filenames(filenames)
+        #     if len(filenames_to_extract) == 0:
+        #         print("yeah")
+        #         return []
+        #     filenames = filenames_to_extract
+        filepath_map = {}
         dest = output_path if output_path is not None else Path()
         extracted: list[str] = []
         with self._open_archive() as archive_obj:  # noqa: SIM117
@@ -143,15 +152,26 @@ class RemoteArchive:
                 if filenames:
                     # Strip the archive stem prefix so prefixed IDs from `_members_tar`
                     # match the raw `member.name` values in the tar.
-                    target_names = {
-                        f[len(stem) + 1 :] if f.startswith(f"{stem}/") else f
-                        for f in filenames
-                    }
+                    stem_parts = PurePosixPath(stem).parts
+                    target_names = set()
+                    for f in filenames:
+                        target_name = f
+                        parts = PurePosixPath(f).parts
+                        if stem_parts == parts[:len(stem_parts)]:
+                            target_name = "/".join(parts[len(stem_parts):])
+                        elif stem in parts:  # stem appears somewhere later
+                            i = parts.index(stem)
+                            target_name = ("/".join(parts[i + 1:]))
+                        else:
+                            target_name = f
+                        target_names.add(target_name)
+                        filepath_map[target_name] = f
                     logger.info(f"Extracting {filenames} from {self.url}")
                     for member in tar_ref:
+                        
                         if member.name in target_names:
                             tar_ref.extract(member, dest)
-                            extracted.append(f"{stem}/{member.name}")
+                            extracted.append(filepath_map[member.name])
                             if len(extracted) == len(target_names):
                                 break
                 else:
@@ -184,13 +204,13 @@ class RemoteArchive:
 
     def _members_tar(self) -> list[str]:
         logger.warning(
-            "Listing members from tar file, this may take a while..."
+            f"Listing members from tar file {self.url}, this may take a while..."
         )
         with self._open_archive() as archive_obj:  # noqa: SIM117
             name = self.archive_stem(str(self.archive_file))
             with tarfile.open(fileobj=archive_obj, mode="r|*") as tar_ref:
-                return [
-                    f"{name}/{member.name}"
+                out = [
+                    f"{self.strip_extension(self.archive_file.name)}/{member.name}"
                     for member in tqdm(
                         tar_ref,
                         desc=f"Listing {self.archive_file.name}",
@@ -198,3 +218,5 @@ class RemoteArchive:
                     )
                     if member.isfile()
                 ]
+                logger.info(f"\n\nARCHIVE_MEMBERS FOR {self.archive_file.name}: {out}\n\n")
+                return out

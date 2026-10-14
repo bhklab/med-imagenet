@@ -1,5 +1,5 @@
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, cast
 from urllib.parse import urlparse
 
@@ -22,7 +22,7 @@ from imgnet.utils import RemoteArchive, get_idc_client
 
 
 os.environ["HF_HUB_DISABLE_XET"] = "1"
-from huggingface_hub import hf_hub_url, snapshot_download
+from huggingface_hub import hf_hub_url, snapshot_download, HfApi
 
 
 class HuggingFaceDownloader(BaseDownloader):
@@ -37,46 +37,69 @@ class HuggingFaceDownloader(BaseDownloader):
     ) -> None:
         """Download from Hugging Face. Here instance_ids is a list of filenames to download."""
 
+        archives_needed: dict[str, set[str]] = {}
+
         if instance_ids is None:
             logger.info(
                 f"Downloading all instances from Hugging Face repository {self.repo_id}"
             )
             files_to_download = self.members
+            remaining: set[str] = set()
         else:
             logger.info(
                 f"Downloading {len(instance_ids)} instances from Hugging Face repository {self.repo_id}"
             )
-            remaining = set(instance_ids)
             files_to_download = []
+            remaining = set(instance_ids)
 
-            for file_name in self.members:
+            for file_name in self._top_level_members():
                 if file_name in remaining:
                     files_to_download.append(file_name)
-                    remaining.remove(file_name)
+                    remaining.discard(file_name)
                     continue
 
                 if RemoteArchive.is_supported_archive(file_name) and remaining:
-                    archive_url = hf_hub_url(
-                        repo_id=self.repo_id,
-                        filename=file_name,
-                        repo_type="dataset",
+                    archive_path = PurePosixPath(
+                        RemoteArchive.strip_extension(file_name)
                     )
-                    archive = RemoteArchive(
-                        archive_url,
-                        RemoteArchive.require_extension(file_name),
-                    )
-                    extracted = archive.extract(
-                        filenames=sorted(remaining),
-                        output_path=output_path,
-                    )
-                    remaining -= set(extracted)
+                    
+
+                    matched: set[str] = set()
+                    for instance_id in remaining:
+                        if str(archive_path) in instance_id:
+                            archives_needed.setdefault(file_name, set()).add(instance_id)
+                            matched.add(instance_id)
+
+                    remaining -= matched
 
             if remaining:
                 msg = f"Instance IDs {sorted(remaining)} not found in Hugging Face repository {self.repo_id}"
                 logger.warning(msg)
 
+        for file_name, instance_paths in archives_needed.items():
+            archive_url = hf_hub_url(
+                repo_id=self.repo_id,
+                filename=file_name,
+                repo_type="dataset",
+            )
+            archive = RemoteArchive(
+                archive_url,
+                RemoteArchive.require_extension(file_name),
+            )
+            archive_path = PurePosixPath(RemoteArchive.strip_extension(file_name))
+            extracted = archive.extract(
+                filenames=sorted(instance_paths),
+                output_path=output_path / archive_path,
+            )
+
+            missing = instance_paths - set(extracted)
+            if missing:
+                logger.warning(
+                    f"Instance IDs {sorted(missing)} not found in {file_name}"
+                )
+
         if len(files_to_download) > 0:
-            with tqdm_logging_redirect():                    
+            with tqdm_logging_redirect():
                 snapshot_download(
                     repo_id=self.repo_id,
                     local_dir=output_path,
@@ -85,7 +108,6 @@ class HuggingFaceDownloader(BaseDownloader):
                     repo_type="dataset",
                     **kwargs,
                 )
-
     @property
     def size(self) -> float:
         from huggingface_hub import HfApi
@@ -107,6 +129,7 @@ class HuggingFaceDownloader(BaseDownloader):
 
         members: list[str] = []
         for file_name in top_level:
+            logger.debug(f"file_name: {file_name}")
             if not RemoteArchive.is_supported_archive(file_name):
                 members.append(file_name)
                 continue
@@ -129,6 +152,14 @@ class HuggingFaceDownloader(BaseDownloader):
                 logger.warning(f"Failed to list members of {file_name}: {e}")
 
         return members
+    
+    def _top_level_members(self) -> list[str]:
+        """List top-level filenames in the repo without opening any archives."""
+
+        api = HfApi()
+        info = api.dataset_info(self.repo_id)
+        siblings = info.siblings or []
+        return [sibling.rfilename for sibling in siblings]
 
 
 class ZenodoDownloader(BaseDownloader):
