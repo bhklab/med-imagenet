@@ -141,7 +141,8 @@ class RemoteArchive:
         stem_path = PurePosixPath(stem)
 
         filepath_map = {}
-        dest = output_path if output_path is not None else Path()
+        # We need to add the archive name to the end of the path.
+        dest = output_path / stem if output_path is not None else Path() / stem
         extracted: list[str] = []
 
         with self._open_archive() as archive_obj:  # noqa: SIM117
@@ -205,7 +206,6 @@ class RemoteArchive:
             f"Listing members from tar file {self.url}, this may take a while..."
         )
         with self._open_archive() as archive_obj:  # noqa: SIM117
-            name = self.archive_stem(str(self.archive_file))
             with tarfile.open(fileobj=archive_obj, mode="r|*") as tar_ref:
                 out = [
                     f"{self.strip_extension(self.archive_file.name)}/{member.name}"

@@ -16,6 +16,7 @@ from imgnet.download.utils import (
     _TIMEOUT,
     _download_http_file,
     _http_session,
+    _contains_subpath
 )
 from imgnet.loggers import logger, tqdm_logging_redirect
 from imgnet.utils import RemoteArchive, get_idc_client
@@ -43,8 +44,8 @@ class HuggingFaceDownloader(BaseDownloader):
             logger.info(
                 f"Downloading all instances from Hugging Face repository {self.repo_id}"
             )
-            files_to_download = self.members
-            remaining: set[str] = set()
+            files_to_download = self._top_level_members
+            remaining: set[str] = set(files_to_download)
         else:
             logger.info(
                 f"Downloading {len(instance_ids)} instances from Hugging Face repository {self.repo_id}"
@@ -66,7 +67,7 @@ class HuggingFaceDownloader(BaseDownloader):
 
                     matched: set[str] = set()
                     for instance_id in remaining:
-                        if str(archive_path) in instance_id:
+                        if _contains_subpath(instance_id, archive_path):
                             archives_needed.setdefault(file_name, set()).add(instance_id)
                             matched.add(instance_id)
 
@@ -86,11 +87,11 @@ class HuggingFaceDownloader(BaseDownloader):
                 archive_url,
                 RemoteArchive.require_extension(file_name),
             )
-            archive_path = PurePosixPath(RemoteArchive.strip_extension(file_name))
+            archive_parent_path = PurePosixPath(file_name).parent
             extracted = archive.extract(
-                filenames=sorted(instance_paths),
-                output_path=output_path / archive_path,
-            )
+                            filenames=sorted(instance_paths),
+                            output_path=output_path / archive_parent_path,
+                        )
 
             missing = instance_paths - set(extracted)
             if missing:

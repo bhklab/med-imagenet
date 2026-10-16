@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -32,3 +32,11 @@ def _download_http_file(
                 for chunk in response.iter_content(chunk_size=2**20):
                     out.write(chunk)
                     pbar.update(len(chunk))
+
+def _contains_subpath(path: str, subpath: PurePosixPath) -> bool:
+    parts = PurePosixPath(path).parts
+    needle = subpath.parts
+    if not needle or len(needle) > len(parts):
+        return False
+    span = len(needle)
+    return any(parts[i : i + span] == needle for i in range(len(parts) - span + 1))
