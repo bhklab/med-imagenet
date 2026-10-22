@@ -129,7 +129,7 @@ class RemoteArchive:
                 return
         with (
             self._open_archive() as remote,
-            tempfile.SpooledTemporaryFile(max_size=8 * 1024 * 1024) as spool,
+            tempfile.TemporaryFile() as spool,
         ):
             shutil.copyfileobj(remote, spool)
             spool.seek(0)
