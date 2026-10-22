@@ -1,5 +1,5 @@
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, cast
 from urllib.parse import urlparse
 
@@ -8,21 +8,133 @@ import s3fs
 from tqdm import tqdm
 from tqdm.auto import tqdm as _tqdm
 
-import tempfile
-import shutil
-
 from imgnet.download.base import BaseDownloader
 from imgnet.download.utils import (
     _TIMEOUT,
+    _contains_subpath,
     _download_http_file,
     _http_session,
+    archive_instance_ids,
+    matching_instance_ids,
 )
 from imgnet.loggers import logger, tqdm_logging_redirect
 from imgnet.utils import RemoteArchive, get_idc_client
 
 
 os.environ["HF_HUB_DISABLE_XET"] = "1"
-from huggingface_hub import hf_hub_url, snapshot_download
+from huggingface_hub import hf_hub_url, snapshot_download, HfApi
+
+
+def _url_relative_path(url: str) -> PurePosixPath:
+    """Return the URL path without the leading slash."""
+    path = PurePosixPath(urlparse(url).path)
+    if path.is_absolute():
+        return PurePosixPath(*path.parts[1:])
+    return path
+
+
+def _extract_archive_ids(
+    url: str,
+    archive_path: str,
+    instance_ids: set[str],
+    output_path: Path,
+) -> set[str]:
+    """Extract instance ids that belong to ``archive_path``."""
+    matched = matching_instance_ids(archive_path, instance_ids)
+    if not matched:
+        return set()
+    archive = RemoteArchive(
+        url,
+        RemoteArchive.require_extension(archive_path),
+        name=PurePosixPath(archive_path).name,
+    )
+    extracted = archive.extract(
+        filenames=sorted(matched), output_path=output_path
+    )
+    return set(extracted)
+
+
+def _member_names(file_name: str, inner_members: list[str]) -> list[str]:
+    """Return archive members without a repeated archive stem."""
+    stem = RemoteArchive.archive_stem(file_name)
+    names: list[str] = []
+    for member in inner_members:
+        member_path = PurePosixPath(member)
+        if member_path.parts and member_path.parts[0] == stem:
+            remainder = PurePosixPath(*member_path.parts[1:])
+            names.append(remainder.as_posix() if remainder.parts else member)
+        else:
+            names.append(member)
+    return names
+
+
+def _download_single_url(
+    url: str,
+    output_path: Path,
+    instance_ids: list[str] | None,
+    source_label: str,
+) -> None:
+    """Download one URL into ``output_path`` using the file's own name.
+
+    The URL is the whole source, so directory segments in the URL are not
+    recreated. A requested archive member is written at
+    ``output_path/<instance id>``. The id may be the bare member path
+    (``s0001/mri.nii.gz``) or start with the archive stem
+    (``CancerVerse_Label/CancerVerse/...``); the index uses both.
+    """
+    output_path.mkdir(parents=True, exist_ok=True)
+    file_name = _url_relative_path(url).name
+    destination = output_path / file_name
+
+    if instance_ids is None:
+        logger.info(f"Downloading all files from {source_label} {url}")
+        _download_http_file(url=url, out_file=destination, desc=file_name)
+        return
+
+    remaining = set(instance_ids)
+    logger.info(
+        f"Downloading {len(remaining)} files from {source_label} {url}"
+    )
+    if file_name in remaining:
+        _download_http_file(url=url, out_file=destination, desc=file_name)
+        remaining.remove(file_name)
+
+    if RemoteArchive.is_supported_archive(file_name) and remaining:
+        archive = RemoteArchive(
+            url, RemoteArchive.require_extension(file_name)
+        )
+        extracted = archive.extract(
+            filenames=sorted(remaining),
+            output_path=output_path,
+            keep_stem=False,
+        )
+        remaining -= set(extracted)
+
+    if remaining:
+        logger.warning(
+            f"Instance IDs {sorted(remaining)} not found in {source_label}"
+        )
+
+
+def _single_url_members(url: str) -> list[str]:
+    file_name = _url_relative_path(url).name
+    if not file_name:
+        return []
+    if RemoteArchive.is_supported_archive(file_name):
+        archive = RemoteArchive(
+            url, RemoteArchive.require_extension(file_name)
+        )
+        members = archive.members
+        return list(
+            dict.fromkeys(
+                [
+                    file_name,
+                    *_member_names(file_name, members),
+                    *archive_instance_ids(file_name, members),
+                ]
+            )
+        )
+    return [file_name]
 
 
 class HuggingFaceDownloader(BaseDownloader):
@@ -37,46 +149,68 @@ class HuggingFaceDownloader(BaseDownloader):
     ) -> None:
         """Download from Hugging Face. Here instance_ids is a list of filenames to download."""
 
+        archives_needed: dict[str, set[str]] = {}
+
         if instance_ids is None:
             logger.info(
                 f"Downloading all instances from Hugging Face repository {self.repo_id}"
             )
-            files_to_download = self.members
+            files_to_download = self._top_level_members
+            remaining: set[str] = set(files_to_download)
         else:
             logger.info(
                 f"Downloading {len(instance_ids)} instances from Hugging Face repository {self.repo_id}"
             )
-            remaining = set(instance_ids)
             files_to_download = []
+            remaining = set(instance_ids)
 
-            for file_name in self.members:
+            for file_name in self._top_level_members:
                 if file_name in remaining:
                     files_to_download.append(file_name)
-                    remaining.remove(file_name)
+                    remaining.discard(file_name)
                     continue
 
                 if RemoteArchive.is_supported_archive(file_name) and remaining:
-                    archive_url = hf_hub_url(
-                        repo_id=self.repo_id,
-                        filename=file_name,
-                        repo_type="dataset",
+                    archive_path = PurePosixPath(
+                        RemoteArchive.strip_extension(file_name)
                     )
-                    archive = RemoteArchive(
-                        archive_url,
-                        RemoteArchive.require_extension(file_name),
-                    )
-                    extracted = archive.extract(
-                        filenames=sorted(remaining),
-                        output_path=output_path,
-                    )
-                    remaining -= set(extracted)
+
+                    matched: set[str] = set()
+                    for instance_id in remaining:
+                        if _contains_subpath(instance_id, archive_path):
+                            archives_needed.setdefault(file_name, set()).add(
+                                instance_id
+                            )
+                            matched.add(instance_id)
+
+                    remaining -= matched
 
             if remaining:
                 msg = f"Instance IDs {sorted(remaining)} not found in Hugging Face repository {self.repo_id}"
                 logger.warning(msg)
 
+        for file_name, instance_paths in archives_needed.items():
+            archive_url = hf_hub_url(
+                repo_id=self.repo_id,
+                filename=file_name,
+                repo_type="dataset",
+            )
+            archive = RemoteArchive(
+                archive_url,
+                RemoteArchive.require_extension(file_name),
+            )
+            extracted = archive.extract(
+                filenames=sorted(instance_paths), output_path=output_path
+            )
+
+            missing = instance_paths - set(extracted)
+            if missing:
+                logger.warning(
+                    f"Instance IDs {sorted(missing)} not found in {file_name}"
+                )
+
         if len(files_to_download) > 0:
-            with tqdm_logging_redirect():                    
+            with tqdm_logging_redirect():
                 snapshot_download(
                     repo_id=self.repo_id,
                     local_dir=output_path,
@@ -95,11 +229,49 @@ class HuggingFaceDownloader(BaseDownloader):
         used_storage = info.used_storage
         if used_storage is None:
             return 0.0
-        return round(float(used_storage) / 1000 / 1000 / 1000, 2)  # convert to GB
+        return round(
+            float(used_storage) / 1000 / 1000 / 1000, 2
+        )  # convert to GB
 
     @property
     def members(self) -> list[str]:
         from huggingface_hub import HfApi
+
+        api = HfApi()
+        info = api.dataset_info(self.repo_id)
+        siblings = info.siblings or []
+        top_level = [sibling.rfilename for sibling in siblings]
+
+        members: list[str] = []
+        for file_name in top_level:
+            if not RemoteArchive.is_supported_archive(file_name):
+                members.append(file_name)
+                continue
+
+            # Keep the archive itself as a member (so you can still request it directly).
+            members.append(file_name)
+
+            archive_url = hf_hub_url(
+                repo_id=self.repo_id,
+                filename=file_name,
+                repo_type="dataset",
+            )
+            archive = RemoteArchive(
+                archive_url,
+                RemoteArchive.require_extension(file_name),
+            )
+            try:
+                members.extend(
+                    archive_instance_ids(file_name, archive.members)
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"Failed to list members of {file_name}: {e}")
+
+        return members
+
+    @property
+    def _top_level_members(self) -> list[str]:
+        """List top-level filenames in the repo without opening any archives."""
 
         api = HfApi()
         info = api.dataset_info(self.repo_id)
@@ -142,15 +314,12 @@ class ZenodoDownloader(BaseDownloader):
                     continue
 
                 if RemoteArchive.is_supported_archive(file_name) and remaining:
-                    archive = RemoteArchive(
+                    remaining -= _extract_archive_ids(
                         file_info["links"]["self"],
-                        RemoteArchive.require_extension(file_name),
+                        file_name,
+                        remaining,
+                        output_path,
                     )
-                    extracted = archive.extract(
-                        filenames=sorted(remaining),
-                        output_path=output_path,
-                    )
-                    remaining -= set(extracted)
 
             if remaining:
                 msg = f"Instance IDs {sorted(remaining)} not found in Zenodo record {self.record_id}"
@@ -167,9 +336,7 @@ class ZenodoDownloader(BaseDownloader):
     @property
     def files_info(self) -> list[dict]:
         session = _http_session()
-        resp = session.get(
-            f"{self.url}/{self.record_id}", timeout=_TIMEOUT
-        )
+        resp = session.get(f"{self.url}/{self.record_id}", timeout=_TIMEOUT)
         resp.raise_for_status()
         files = resp.json()["files"]
         if len(files) == 0:
@@ -189,16 +356,18 @@ class ZenodoDownloader(BaseDownloader):
 
         for file_info in self.files_info:
             file_name = file_info["key"]
+            updated_file_names.append(file_name)
             if RemoteArchive.is_supported_archive(file_name):
                 archive = RemoteArchive(
                     file_info["links"]["self"],
                     RemoteArchive.require_extension(file_name),
+                    name=PurePosixPath(file_name).name,
                 )
-                updated_file_names.extend(archive.members)
-            else:
-                updated_file_names.append(file_name)
+                updated_file_names.extend(
+                    archive_instance_ids(file_name, archive.members)
+                )
 
-        return list(set(updated_file_names))
+        return list(dict.fromkeys(updated_file_names))
 
 
 class DropboxDownloader(BaseDownloader):
@@ -214,46 +383,9 @@ class DropboxDownloader(BaseDownloader):
         **kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Download from Dropbox. Supports selecting specific instance_ids from archives."""
-        output_path.mkdir(parents=True, exist_ok=True)
-        file_name = Path(urlparse(self.url).path).name
-
-        if instance_ids is None:
-            logger.info(
-                f"Downloading all files from Dropbox source {self.url}"
-            )
-            _download_http_file(
-                url=self.url,
-                out_file=output_path / file_name,
-                desc=file_name,
-            )
-            return None
-
-        remaining = set(instance_ids)
-        logger.info(
-            f"Downloading {len(remaining)} files from Dropbox source {self.url}"
+        _download_single_url(
+            self.url, output_path, instance_ids, "Dropbox source"
         )
-        if file_name in remaining:
-            _download_http_file(
-                url=self.url,
-                out_file=output_path / file_name,
-                desc=file_name,
-            )
-            remaining.remove(file_name)
-
-        if RemoteArchive.is_supported_archive(file_name) and remaining:
-            archive = RemoteArchive(
-                self.url, RemoteArchive.require_extension(file_name)
-            )
-            extracted = archive.extract(
-                filenames=sorted(remaining), output_path=output_path
-            )
-            remaining -= set(extracted)
-
-        if remaining:
-            msg = (
-                f"Instance IDs {sorted(remaining)} not found in Dropbox source"
-            )
-            logger.warning(msg)
 
     @property
     def size(self) -> float:
@@ -264,13 +396,7 @@ class DropboxDownloader(BaseDownloader):
 
     @property
     def members(self) -> list[str]:
-        file_name = Path(urlparse(self.url).path)
-        if RemoteArchive.is_supported_archive(str(file_name)):
-            return RemoteArchive(
-                self.url, RemoteArchive.require_extension(str(file_name))
-            ).members
-
-        return [file_name.name]
+        return _single_url_members(self.url)
 
 
 class HttpDownloader(BaseDownloader):
@@ -284,42 +410,9 @@ class HttpDownloader(BaseDownloader):
         **kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Download from a direct HTTP(S) URL. Supports selecting instance_ids from archives."""
-        output_path.mkdir(parents=True, exist_ok=True)
-        file_name = Path(urlparse(self.url).path).name
-
-        if instance_ids is None:
-            logger.info(f"Downloading all files from HTTP source {self.url}")
-            _download_http_file(
-                url=self.url,
-                out_file=output_path / file_name,
-                desc=file_name,
-            )
-            return None
-
-        remaining = set(instance_ids)
-        logger.info(
-            f"Downloading {len(remaining)} files from HTTP source {self.url}"
+        _download_single_url(
+            self.url, output_path, instance_ids, "HTTP source"
         )
-        if file_name in remaining:
-            _download_http_file(
-                url=self.url,
-                out_file=output_path / file_name,
-                desc=file_name,
-            )
-            remaining.remove(file_name)
-
-        if RemoteArchive.is_supported_archive(file_name) and remaining:
-            archive = RemoteArchive(
-                self.url, RemoteArchive.require_extension(file_name)
-            )
-            extracted = archive.extract(
-                filenames=sorted(remaining), output_path=output_path
-            )
-            remaining -= set(extracted)
-
-        if remaining:
-            msg = f"Instance IDs {sorted(remaining)} not found in HTTP source"
-            logger.warning(msg)
 
     @property
     def size(self) -> float:
@@ -330,19 +423,20 @@ class HttpDownloader(BaseDownloader):
 
     @property
     def members(self) -> list[str]:
-        file_name = Path(urlparse(self.url).path)
-        if RemoteArchive.is_supported_archive(str(file_name)):
-            return RemoteArchive(
-                self.url, RemoteArchive.require_extension(str(file_name))
-            ).members
-
-        return [file_name.name]
+        return _single_url_members(self.url)
 
 
 class S3Downloader(BaseDownloader):
     def __init__(self, bucket_name: str) -> None:
         self.bucket_name = bucket_name
         self.fs = s3fs.S3FileSystem(anon=True)
+
+    def _object_key(self, file_path: str) -> str:
+        path = file_path.removeprefix("s3://")
+        prefix = f"{self.bucket_name}/"
+        if path.startswith(prefix):
+            return path[len(prefix) :]
+        return path
 
     def download(
         self,
@@ -359,22 +453,26 @@ class S3Downloader(BaseDownloader):
             files_to_download = []
 
             for file_path in all_bucket_files:
-                file_name = Path(file_path).name
-                if file_path in remaining or file_name in remaining:
+                key = self._object_key(file_path)
+                file_name = Path(key).name
+                if (
+                    key in remaining
+                    or file_path in remaining
+                    or file_name in remaining
+                ):
                     files_to_download.append(file_path)
+                    remaining.discard(key)
                     remaining.discard(file_path)
                     remaining.discard(file_name)
                     continue
 
-                if RemoteArchive.is_supported_archive(file_path) and remaining:
-                    archive = RemoteArchive(
+                if RemoteArchive.is_supported_archive(key) and remaining:
+                    remaining -= _extract_archive_ids(
                         f"s3://{file_path}",
-                        RemoteArchive.require_extension(file_path),
+                        key,
+                        remaining,
+                        output_path,
                     )
-                    extracted = archive.extract(
-                        filenames=sorted(remaining), output_path=output_path
-                    )
-                    remaining -= set(extracted)
 
             if remaining:
                 msg = f"Instance IDs {sorted(remaining)} not found in S3 bucket {self.bucket_name}"
@@ -382,7 +480,8 @@ class S3Downloader(BaseDownloader):
 
         for file_path in files_to_download:
             size = self.fs.info(file_path)["size"]
-            out_file = output_path / Path(file_path).name
+            out_file = output_path / self._object_key(file_path)
+            out_file.parent.mkdir(parents=True, exist_ok=True)
 
             with tqdm(  # noqa: SIM117
                 total=size, unit="B", unit_scale=True, desc=out_file.name
@@ -408,20 +507,19 @@ class S3Downloader(BaseDownloader):
 
     @property
     def members(self) -> list[str]:
-        file_paths = [
-            file_path for file_path in self.fs.find(self.bucket_name)
-        ]
-        expanded_members = set(file_paths)
-
-        for file_path in file_paths:
-            if RemoteArchive.is_supported_archive(file_path):
+        expanded_members: list[str] = []
+        for file_path in self.fs.find(self.bucket_name):
+            key = self._object_key(file_path)
+            expanded_members.append(key)
+            if RemoteArchive.is_supported_archive(key):
                 archive = RemoteArchive(
                     f"s3://{file_path}",
-                    RemoteArchive.require_extension(file_path),
+                    RemoteArchive.require_extension(key),
                 )
-                expanded_members.update(archive.members)
-
-        return list(expanded_members)
+                expanded_members.extend(
+                    archive_instance_ids(key, archive.members)
+                )
+        return list(dict.fromkeys(expanded_members))
 
 
 class IDCDownloader(BaseDownloader):
@@ -482,11 +580,13 @@ class IDCDownloader(BaseDownloader):
             "list[str]",
             self.client.sql_query(query)["SeriesInstanceUID"].tolist(),
         )
+
+
 class GitHubDownloader(BaseDownloader):
     def __init__(self, repo_id: str) -> None:
         """
         Initialize GitHub downloader.
-        
+
         Args:
             repo_id: GitHub repository in format "owner/repo"
         """
@@ -494,7 +594,7 @@ class GitHubDownloader(BaseDownloader):
         self._api_base = "https://api.github.com/repos"
         self._raw_base = "https://raw.githubusercontent.com"
         self._cache = {}  # Simple cache for API responses
-        
+
     def download(
         self,
         output_path: Path,
@@ -502,179 +602,178 @@ class GitHubDownloader(BaseDownloader):
         **kwargs: Any,
     ) -> None:
         """Download from GitHub repository."""
-        
+
         output_path.mkdir(parents=True, exist_ok=True)
-        
+
         if instance_ids is None:
-            logger.info(f"Downloading all files from GitHub repository {self.repo_id}")
-            files_to_download = self.members
+            logger.info(
+                f"Downloading all files from GitHub repository {self.repo_id}"
+            )
+            files_to_download = self._repository_files()
         else:
             logger.info(
                 f"Downloading {len(instance_ids)} instances from GitHub repository {self.repo_id}"
             )
             remaining = set(instance_ids)
             files_to_download = []
-            
-            # Get all members first to check for archives
-            all_members = self.members
-            
-            for file_path in all_members:
+
+            for file_path in self._repository_files():
                 if file_path in remaining:
                     files_to_download.append(file_path)
                     remaining.remove(file_path)
                     continue
-                
-                # Check if this is an archive that might contain remaining files
+
                 if RemoteArchive.is_supported_archive(file_path) and remaining:
-                    # Try to extract and see if it contains any of the remaining files
-                    archive_url = self._get_raw_url(file_path)
-                    archive = RemoteArchive(
-                        archive_url,
-                        RemoteArchive.require_extension(file_path),
+                    remaining -= _extract_archive_ids(
+                        self._get_raw_url(file_path),
+                        file_path,
+                        remaining,
+                        output_path,
                     )
-                    
-                    # Create temp dir for extraction
-                    with tempfile.TemporaryDirectory() as temp_dir:
-                        temp_path = Path(temp_dir)
-                        extracted = archive.extract(
-                            filenames=sorted(remaining),
-                            output_path=temp_path,
-                        )
-                        
-                        # If we extracted something, move it to the actual output
-                        if extracted:
-                            for extracted_file in extracted:
-                                src = temp_path / extracted_file
-                                dst = output_path / extracted_file
-                                dst.parent.mkdir(parents=True, exist_ok=True)
-                                shutil.move(str(src), str(dst))
-                            remaining -= set(extracted)
-            
+
             if remaining:
                 logger.warning(
                     f"Instance IDs {sorted(remaining)} not found in GitHub repository {self.repo_id}"
                 )
-        
+
         # Download all collected files
         if files_to_download:
             self._download_files(files_to_download, output_path)
-    
+
     def _download_files(self, files: list[str], output_path: Path) -> None:
         """Download a list of files from GitHub preserving directory structure."""
-        
+
         for file_path in tqdm(files, desc="Downloading files"):
             local_file_path = output_path / file_path
             local_file_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             # Get the raw content URL
             raw_url = self._get_raw_url(file_path)
-            
+
             try:
                 # Stream download for large files
                 response = requests.get(raw_url, stream=True)
                 response.raise_for_status()
-                
+
                 # Get total size for progress bar
-                total_size = int(response.headers.get('content-length', 0))
-                
+                total_size = int(response.headers.get("content-length", 0))
+
                 # Download with progress
-                with open(local_file_path, 'wb') as f:
+                with open(local_file_path, "wb") as f:
                     with tqdm(
-                        total=total_size, 
-                        unit='B', 
+                        total=total_size,
+                        unit="B",
                         unit_scale=True,
                         desc=f"Downloading {Path(file_path).name}",
-                        leave=False
+                        leave=False,
                     ) as pbar:
                         for chunk in response.iter_content(chunk_size=8192):
                             if chunk:
                                 f.write(chunk)
                                 pbar.update(len(chunk))
-                                
+
             except requests.exceptions.RequestException as e:
                 logger.error(f"Failed to download {file_path}: {e}")
                 # Remove partially downloaded file
                 if local_file_path.exists():
                     local_file_path.unlink()
                 raise
-    
+
     def _get_raw_url(self, file_path: str) -> str:
         """Get the raw content URL for a file."""
         # First, get the default branch
         branch = self._get_default_branch()
         return f"{self._raw_base}/{self.repo_id}/{branch}/{file_path}"
-    
+
     def _get_default_branch(self) -> str:
         """Get the default branch of the repository."""
         cache_key = "default_branch"
         if cache_key in self._cache:
             return self._cache[cache_key]
-        
+
         url = f"{self._api_base}/{self.repo_id}"
         response = requests.get(url)
         response.raise_for_status()
         data = response.json()
-        
+
         branch = data.get("default_branch", "main")
         self._cache[cache_key] = branch
         return branch
-    
+
     @property
     def size(self) -> float:
         """Return the size of the repository in GB."""
         cache_key = "size"
         if cache_key in self._cache:
             return self._cache[cache_key]
-        
+
         url = f"{self._api_base}/{self.repo_id}"
         try:
             response = requests.get(url)
             response.raise_for_status()
             data = response.json()
-            
+
             # GitHub API returns size in KB
             size_kb = data.get("size", 0)
             size_gb = size_kb / 1000 / 1000  # Convert KB to GB
-            
+
             result = round(size_gb, 2)
             self._cache[cache_key] = result
             return result
         except requests.exceptions.RequestException as e:
             logger.warning(f"Failed to get repository size: {e}")
             return 0.0
-    
-    @property
-    def members(self) -> list[str]:
-        """Return all file paths in the repository."""
-        cache_key = "members"
+
+    def _repository_files(self) -> list[str]:
+        """Return blob paths in the repository, without opening archives."""
+        cache_key = "files"
         if cache_key in self._cache:
             return self._cache[cache_key]
-        
-        # Get the default branch
+
         branch = self._get_default_branch()
-        
-        # Get the git tree recursively
         url = f"{self._api_base}/{self.repo_id}/git/trees/{branch}?recursive=1"
-        
+
         try:
             response = requests.get(url)
             response.raise_for_status()
             data = response.json()
-            
-            # Filter out directories, keep only files
-            members = [
-                item["path"] 
+            files = [
+                item["path"]
                 for item in data.get("tree", [])
                 if item.get("type") == "blob"
             ]
-            
-            self._cache[cache_key] = members
-            return members
-            
+            self._cache[cache_key] = files
+            return files
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to get repository members: {e}")
             return []
-    
+
+    @property
+    def members(self) -> list[str]:
+        """Return selectable instance ids, including files inside archives."""
+        cache_key = "members"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        expanded: list[str] = []
+        for file_path in self._repository_files():
+            expanded.append(file_path)
+            if not RemoteArchive.is_supported_archive(file_path):
+                continue
+            try:
+                archive = RemoteArchive(
+                    self._get_raw_url(file_path),
+                    RemoteArchive.require_extension(file_path),
+                )
+                expanded.extend(
+                    archive_instance_ids(file_path, archive.members)
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"Failed to list members of {file_path}: {e}")
+
+        self._cache[cache_key] = expanded
+        return expanded
+
     def _get_file_size(self, file_path: str) -> int:
         """Get the size of a specific file."""
         # First try to get from members list with sizes
@@ -687,11 +786,13 @@ class GitHubDownloader(BaseDownloader):
         except requests.exceptions.RequestException:
             return 0
 
+
 class CompositeDownloader(BaseDownloader):
     def __init__(self, downloaders: list[BaseDownloader]):
         self.downloaders = downloaders
         self._size = None
         self._members = None
+
     @property
     def members(self) -> list[str]:
         if self._members is None:
@@ -700,19 +801,24 @@ class CompositeDownloader(BaseDownloader):
                 result.extend(downloader.members)
             self._members = result
         return self._members  # Always return, even if empty
+
     @property
     def size(self) -> float:
         if self._size is None:
-            self._size = round(sum(downloader.size for downloader in self.downloaders), 2)
+            self._size = round(
+                sum(downloader.size for downloader in self.downloaders), 2
+            )
         return self._size
-    def download(self,
-            output_path: Path,
-            instance_ids: list[str] | None = None,
-            **kwargs: Any
-        ) -> None:
+
+    def download(
+        self,
+        output_path: Path,
+        instance_ids: list[str] | None = None,
+        **kwargs: Any,
+    ) -> None:
         """
         Download from all sources.
-        
+
         If instance_ids is provided, each downloader will only download files
         that match the requested IDs. IDs not found in any source are ignored.
         """
@@ -724,9 +830,11 @@ class CompositeDownloader(BaseDownloader):
             for downloader in self.downloaders:
                 members = downloader.members
                 ids = [id for id in instance_ids if id in members]
+                logger.info(
+                    f"members for {type(self.downloaders)}: \n {members}"
+                )
+                logger.info(f"ids accepted: {ids}")
                 if len(ids) > 0:
-                    downloader.download(output_path, instance_ids=ids, **kwargs)
-
-        
-
-
+                    downloader.download(
+                        output_path, instance_ids=ids, **kwargs
+                    )
