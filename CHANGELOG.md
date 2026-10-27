@@ -1,6 +1,13 @@
 # CHANGELOG
 
 
+## [0.4.1](https://github.com/bhklab/med-imagenet/compare/v0.4.0...v0.4.1) (2026-10-27)
+
+
+### Bug Fixes
+
+* correct remote tar extraction and Python 3.10 zip spooling ([9d7d4a6](https://github.com/bhklab/med-imagenet/commit/9d7d4a66311bd2619743862ad797d0558c0a0a5a))
+
 ## [0.4.0](https://github.com/bhklab/med-imagenet/compare/v0.3.1...v0.4.0) (2026-09-17)
 
 
