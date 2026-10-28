@@ -9132,7 +9132,7 @@ packages:
   license: BSD-3-Clause
   license_family: BSD
   purls:
-  - pkg:pypi/jupyter-client?source=compressed-mapping
+  - pkg:pypi/jupyter-client?source=hash-mapping
   size: 118962
   timestamp: 1787929615607
 - conda: https://conda.anaconda.org/conda-forge/noarch/jupyter_console-6.6.3-pyhd8ed1ab_1.conda
@@ -9322,7 +9322,7 @@ packages:
   license: BSD-3-Clause
   license_family: BSD
   purls:
-  - pkg:pypi/jupyterlab-widgets?source=compressed-mapping
+  - pkg:pypi/jupyterlab-widgets?source=hash-mapping
   size: 219589
   timestamp: 1787045328396
 - pypi: https://files.pythonhosted.org/packages/81/db/e655086b7f3a705df045bf0933bdd9c2f79bb3c97bfef1384598bb79a217/keyring-25.7.0-py3-none-any.whl
@@ -10981,11 +10981,7 @@ packages:
 - pypi: ./
   name: med-imagenet
   version: 0.4.0
-<<<<<<< HEAD
   sha256: a2ebfc76cd671f601489a866c2120f2358424212157516b54fdf83f1b66569d5
-=======
-  sha256: 7e48a7c3e85dab430f8b82bfecfc0e14b428303d34b6430e29edbf6a40b93309
->>>>>>> origin/main
   requires_dist:
   - med-imagetools>=2.11.1,<3
   - tcia-utils>=3.1.2,<3.2.0
@@ -11659,7 +11655,7 @@ packages:
   license: BSD-3-Clause
   license_family: BSD
   purls:
-  - pkg:pypi/nbformat?source=compressed-mapping
+  - pkg:pypi/nbformat?source=hash-mapping
   size: 107750
   timestamp: 1787133512599
 - conda: https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.6-hdb14827_1.conda
@@ -16430,7 +16426,7 @@ packages:
   license: MIT
   license_family: MIT
   purls:
-  - pkg:pypi/rpds-py?source=compressed-mapping
+  - pkg:pypi/rpds-py?source=hash-mapping
   size: 302657
   timestamp: 1791202432096
 - conda: https://conda.anaconda.org/conda-forge/osx-64/rpds-py-2026.9.1-py312h3b11fa5_0.conda
