@@ -10,6 +10,7 @@ from typing import IO, cast
 from urllib.parse import urlparse
 
 import fsspec
+import aiohttp
 from tqdm import tqdm
 
 from imgnet.loggers import logger
@@ -95,10 +96,24 @@ class RemoteArchive:
         return Path(urlparse(self.url).path)
 
     @contextmanager
-    def _open_archive(self) -> Iterator[IO[bytes]]:
-        storage_options = (
-            {"anon": True} if self.url.startswith("s3://") else {}
-        )
+    def _open_archive(
+        self, *, streaming: bool = False
+    ) -> Iterator[IO[bytes]]:
+        """Open the archive for reading.
+        ``streaming`` reads HTTP(S) bodies with one GET instead of a range
+        request per block. Only sequential readers (tar) can use it; zip
+        needs to seek to its central directory.
+        """
+        storage_options: dict[str, object] = {}
+        if self.url.startswith("s3://"):
+            storage_options["anon"] = True
+        elif streaming and self.url.startswith(("http://", "https://")):
+            storage_options["block_size"] = 0
+            storage_options["client_kwargs"] = {
+                "timeout": aiohttp.ClientTimeout(
+                    total=None, sock_connect=30, sock_read=300
+                )
+            }
         with fsspec.open(
             self.url, mode="rb", **storage_options
         ).open() as remote_file:
@@ -284,7 +299,9 @@ class RemoteArchive:
         keep_stem: bool = True,
     ) -> list[str]:
         self._log_extract(filenames)
-        with self._open_archive() as archive_obj:  # noqa: SIM117
+
+        with self._open_archive(streaming=True) as archive_obj:  # noqa: SIM117
+
             with tarfile.open(fileobj=archive_obj, mode="r|*") as tar_ref:
                 entries = (
                     (
@@ -330,7 +347,7 @@ class RemoteArchive:
         logger.warning(
             f"Listing members from tar file {self.url}, this may take a while..."
         )
-        with self._open_archive() as archive_obj:  # noqa: SIM117
+        with self._open_archive(streaming=True) as archive_obj:  # noqa: SIM117
             with tarfile.open(fileobj=archive_obj, mode="r|*") as tar_ref:
                 out = [
                     f"{self.stem}/{self._relative_member(member.name)}"
