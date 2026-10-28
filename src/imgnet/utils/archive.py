@@ -119,10 +119,6 @@ class RemoteArchive:
         ).open() as remote_file:
             yield cast("IO[bytes]", remote_file)
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/main
     @contextmanager
     def _open_zip(self) -> Iterator[zipfile.ZipFile]:
         """Open the zip in place, or spool it when the server cannot seek.
@@ -303,11 +299,9 @@ class RemoteArchive:
         keep_stem: bool = True,
     ) -> list[str]:
         self._log_extract(filenames)
-<<<<<<< HEAD
+
         with self._open_archive(streaming=True) as archive_obj:  # noqa: SIM117
-=======
-        with self._open_archive() as archive_obj:  # noqa: SIM117
->>>>>>> origin/main
+
             with tarfile.open(fileobj=archive_obj, mode="r|*") as tar_ref:
                 entries = (
                     (
