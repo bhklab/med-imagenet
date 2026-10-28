@@ -1,6 +1,13 @@
 # CHANGELOG
 
 
+## [0.4.2](https://github.com/bhklab/med-imagenet/compare/v0.4.1...v0.4.2) (2026-10-28)
+
+
+### Bug Fixes
+
+* remote tar extraction ([#37](https://github.com/bhklab/med-imagenet/issues/37)) ([5818380](https://github.com/bhklab/med-imagenet/commit/581838065b5e7e07a0c0bda00f7c8660f20f73f0))
+
 ## [0.4.1](https://github.com/bhklab/med-imagenet/compare/v0.4.0...v0.4.1) (2026-10-27)
 
 
