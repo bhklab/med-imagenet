@@ -113,11 +113,13 @@ jobs:
         env:
           TERM: xterm-256color
           FORCE_COLOR: "1"
-          NO_COLOR: ""
         run: |
           mkdir -p docs/figures
-          unset NO_COLOR
-          termshot --filename docs/figures/overview.png -- imgnet -q collections overview
+          mkfifo /tmp/termshot.stdin
+          sleep 120 > /tmp/termshot.stdin &
+          holder=$!
+          termshot --filename docs/figures/overview.png -- imgnet -q collections overview < /tmp/termshot.stdin
+          kill "$holder"
 
       - name: Commit and push changes
         run: |

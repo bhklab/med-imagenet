@@ -10981,7 +10981,11 @@ packages:
 - pypi: ./
   name: med-imagenet
   version: 0.4.0
+<<<<<<< HEAD
   sha256: a2ebfc76cd671f601489a866c2120f2358424212157516b54fdf83f1b66569d5
+=======
+  sha256: 7e48a7c3e85dab430f8b82bfecfc0e14b428303d34b6430e29edbf6a40b93309
+>>>>>>> origin/main
   requires_dist:
   - med-imagetools>=2.11.1,<3
   - tcia-utils>=3.1.2,<3.2.0
