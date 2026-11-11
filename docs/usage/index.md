@@ -52,6 +52,15 @@ imgnet query -c 4D-Lung -m CT,RTSTRUCT | imgnet download -p
 The `-p` flag runs the Med-ImageTools autopipeline on downloaded DICOM files,
 producing AI-ready NIfTI outputs.
 
+### 5. Build an nnU-Net dataset (NIfTI collections)
+
+```console
+imgnet nnunet config.json --dry-run
+imgnet nnunet config.json
+```
+
+See [Building nnU-Net datasets](nnunet.md) for the config format.
+
 ## Output Layout
 
 ```
