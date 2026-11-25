@@ -103,8 +103,9 @@ ROIs overlap, the one listed later in `intensity_map` wins. By default a sample
 missing any listed ROI is skipped, because a missing mask file would otherwise
 be written as "no lesion".
 
-**remap** takes a single multi-label mask and maps its values. Values not in
-`intensity_map` become 0, with a warning.
+**remap** takes a single multi-label mask and maps its values. Keys are whole
+numbers (`"1"` or `"1.0"`). Values not in `intensity_map` become 0, with a
+warning. `roi_column` and `allow_missing_rois` are rejected on remap entries.
 
 ## Selectors
 
@@ -134,7 +135,8 @@ column to keep a patient's samples on one side.
 
 `split` uses the collection's own split column instead. Every value must be
 listed in `train` or `test`. If the column has no values for that collection,
-a warning is logged and a random split is used.
+a warning is logged and a random split is used, grouped by `group_column` if
+set. When the split column is used, `group_column` is ignored, with a warning.
 
 ## Safety checks
 

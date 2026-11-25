@@ -216,6 +216,29 @@ def test_missing_split_column_falls_back_to_random(
     assert "using a random split" in caplog.text
 
 
+def test_split_column_warns_that_group_column_is_ignored(
+    source: Source, caplog: pytest.LogCaptureFixture
+) -> None:
+    collections = _collections(source, {}, {"group_column": "SampleID"})
+    with caplog.at_level(logging.WARNING, logger="imgnet"):
+        plan = _plan(source, collections=collections)
+    splits = {c.sample_id: c.split for c in plan.cases}
+    assert splits["M3"] == "Ts"  # still from the Split column
+    assert "group_column 'SampleID' only applies to random splits" in caplog.text
+
+
+def test_split_fallback_uses_group_column(
+    source: Source, caplog: pytest.LogCaptureFixture
+) -> None:
+    split = {"column": "OfficialSplit", "train": ["Tr"]}
+    collections = _collections(source, {"split": split})
+    with caplog.at_level(logging.WARNING, logger="imgnet"):
+        plan = _plan(source, collections=collections)
+    atlas = {c.sample_id: c.split for c in plan.cases if c.collection == ATLAS}
+    assert atlas["A1"] == atlas["A2"]  # same patient P1
+    assert "grouped by 'PatientID'" in caplog.text
+
+
 def _split_frame(n_patients: int, per_patient: int) -> pd.DataFrame:
     rows = [
         {"SampleID": f"S{p}_{i}", "Patient": f"P{p}"}

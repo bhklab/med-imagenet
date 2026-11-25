@@ -69,9 +69,33 @@ def test_intensity_values_must_be_labels(source: Source) -> None:
         _validate(source, collections=collections)
 
 
-def test_remap_keys_must_be_integers(source: Source) -> None:
-    collections = _collection(source, 1, intensity_map={"liver": 1})
-    with pytest.raises(ValidationError, match="integer mask values"):
+@pytest.mark.parametrize("key", ["liver", "1.5", "nan", ""])
+def test_remap_keys_must_be_whole_numbers(source: Source, key: str) -> None:
+    collections = _collection(source, 1, intensity_map={key: 1})
+    with pytest.raises(ValidationError, match="whole-number mask values"):
+        _validate(source, collections=collections)
+
+
+def test_remap_keys_accept_integral_floats(source: Source) -> None:
+    collections = _collection(source, 1, intensity_map={"1.0": 1, "2": 2})
+    config = _validate(source, collections=collections)
+    assert config.collections[1].intensity_map == {"1": 1, "2": 2}
+
+
+def test_remap_keys_must_not_repeat_a_value(source: Source) -> None:
+    collections = _collection(source, 1, intensity_map={"1": 1, "1.0": 2})
+    with pytest.raises(ValidationError, match="mask value 1 more than once"):
+        _validate(source, collections=collections)
+
+
+@pytest.mark.parametrize(
+    "field", [{"roi_column": "ROINames"}, {"allow_missing_rois": False}]
+)
+def test_combine_only_fields_rejected_on_remap(
+    source: Source, field: dict
+) -> None:
+    collections = _collection(source, 1, **field)
+    with pytest.raises(ValidationError, match="only apply to method 'combine'"):
         _validate(source, collections=collections)
 
 

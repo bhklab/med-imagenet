@@ -405,11 +405,21 @@ def assign_splits(
     if cfg.split is not None:
         column = cfg.split.column
         if column in rows.columns and rows[column].notna().any():
+            if cfg.group_column is not None:
+                logger.warning(
+                    "%s: using split column %r; group_column %r only "
+                    "applies to random splits and is ignored.",
+                    cfg.collection,
+                    column,
+                    cfg.group_column,
+                )
             return _splits_from_column(rows, sample_ids, cfg)
         logger.warning(
-            "%s: split column %r has no values; using a random split instead.",
+            "%s: split column %r has no values; using a random split "
+            "instead%s.",
             cfg.collection,
             column,
+            f", grouped by {cfg.group_column!r}" if cfg.group_column else "",
         )
     return _random_splits(rows, sample_ids, cfg, test_size, random_state)
 

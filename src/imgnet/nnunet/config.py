@@ -20,7 +20,6 @@ from pydantic import (
     model_validator,
 )
 
-SUPPORTED_FILE_ENDINGS = (".nii.gz", ".nii", ".mha", ".nrrd")
 _DATASET_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
@@ -130,7 +129,8 @@ class CollectionConfig(BaseModel):
         default=None,
         description=(
             "Patient ID column. Samples sharing a value are kept on the "
-            "same side of a random split."
+            "same side of a random split, including the fallback when "
+            "'split' has no values. Ignored when 'split' is used."
         ),
     )
     split: SplitColumn | None = Field(
@@ -147,13 +147,18 @@ class CollectionConfig(BaseModel):
             msg = f"{self.collection}: intensity_map is empty"
             raise ValueError(msg)
         if self.method == "remap":
-            bad = [k for k in self.intensity_map if not _is_int(k)]
-            if bad:
+            combine_only = sorted(
+                {"roi_column", "allow_missing_rois"} & self.model_fields_set
+            )
+            if combine_only:
                 msg = (
-                    f"{self.collection}: remap intensity_map keys must be "
-                    f"integer mask values, got {bad}"
+                    f"{self.collection}: {combine_only} only apply to "
+                    "method 'combine'"
                 )
                 raise ValueError(msg)
+            self.intensity_map = _canonical_remap_keys(
+                self.collection, self.intensity_map
+            )
             negative = [v for v in self.intensity_map.values() if v < 0]
         else:
             negative = [v for v in self.intensity_map.values() if v < 1]
@@ -326,9 +331,38 @@ def load_config(path: Path | str) -> NnUNetConfig:
     return config
 
 
-def _is_int(value: str) -> bool:
+def _as_int(value: str) -> int | None:
+    """Parse ``"3"`` or ``"3.0"`` as 3; anything else gives None."""
     try:
-        int(value)
+        return int(value)
     except ValueError:
-        return False
-    return True
+        pass
+    try:
+        number = float(value)
+    except ValueError:
+        return None
+    return int(number) if number.is_integer() else None
+
+
+def _canonical_remap_keys(
+    collection: str, intensity_map: dict[str, int]
+) -> dict[str, int]:
+    """Rewrite remap keys as plain integers, e.g. ``"1.0"`` -> ``"1"``."""
+    bad = [k for k in intensity_map if _as_int(k) is None]
+    if bad:
+        msg = (
+            f"{collection}: remap intensity_map keys must be whole-number "
+            f"mask values, got {bad}"
+        )
+        raise ValueError(msg)
+    out: dict[str, int] = {}
+    for key, label in intensity_map.items():
+        canonical = str(_as_int(key))
+        if canonical in out:
+            msg = (
+                f"{collection}: remap intensity_map lists mask value "
+                f"{canonical} more than once"
+            )
+            raise ValueError(msg)
+        out[canonical] = label
+    return out
