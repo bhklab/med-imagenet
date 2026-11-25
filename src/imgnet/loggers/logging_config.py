@@ -124,11 +124,16 @@ class LoggingManager:
             # Ensure the log directory exists
             LOG_DIR_NAME.mkdir(parents=True, exist_ok=True)
             latest_symlink = LOG_DIR_NAME / "latest.log"
-            if latest_symlink.exists() or latest_symlink.is_symlink():
-                latest_symlink.unlink()
-            latest_symlink.symlink_to(
-                timestamped_logfile.name, target_is_directory=False
-            )
+            # Several processes (e.g. `imgnet nnunet -j N` workers) can set
+            # up logging at once, so tolerate losing the race; the link is
+            # only a convenience.
+            try:
+                latest_symlink.unlink(missing_ok=True)
+                latest_symlink.symlink_to(
+                    timestamped_logfile.name, target_is_directory=False
+                )
+            except OSError:
+                pass
 
             base["handlers"]["json"] = {  # type: ignore
                 "class": "logging.handlers.RotatingFileHandler",

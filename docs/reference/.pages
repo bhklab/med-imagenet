@@ -3,5 +3,6 @@ nav:
   - Query: query
   - Collections: collections
   - Download: download
+  - nnU-Net: nnunet.md
   - Utilities: utils.md
   - Logging: loggers.md
