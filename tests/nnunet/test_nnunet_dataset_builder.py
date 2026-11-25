@@ -13,8 +13,8 @@ import SimpleITK as sitk
 from click.testing import CliRunner
 
 from imgnet.cli.__main__ import cli
-from imgnet.nnunet.build import MANIFEST_NAME, OutputExistsError, build_dataset
-from imgnet.nnunet.plan import PlanError
+from imgnet.nnunet.dataset_builder import MANIFEST_NAME, DatasetExistsError, build_nnunet_dataset
+from imgnet.nnunet.case_selection import CaseSelectionError
 from tests.nnunet.helpers import (
     ATLAS,
     MSWAL,
@@ -23,10 +23,10 @@ from tests.nnunet.helpers import (
     Source,
     kidney_mask,
     liver_mask,
-    make_config,
+    make_dataset_config,
     multilabel_mask,
     read_array,
-    write_config,
+    write_dataset_config,
     write_volume,
 )
 
@@ -38,7 +38,7 @@ def _files(folder: Path) -> list[str]:
 
 
 def test_build_writes_valid_nnunet_layout(source: Source) -> None:
-    result = build_dataset(make_config(source))
+    result = build_nnunet_dataset(make_dataset_config(source))
     out = source.root / "nnUNet_raw" / DATASET
     assert result.dataset_dir == out
     assert not result.failures
@@ -75,7 +75,7 @@ def test_build_writes_valid_nnunet_layout(source: Source) -> None:
 
 
 def test_labels_are_combined_and_remapped(source: Source) -> None:
-    build_dataset(make_config(source))
+    build_nnunet_dataset(make_dataset_config(source))
     out = source.root / "nnUNet_raw" / DATASET
     # Every Atlas sample has the same masks, so any of its labels will do.
     atlas = next(out.glob("labels*/AbdomenAtlas3_*"))
@@ -92,7 +92,7 @@ def test_labels_are_combined_and_remapped(source: Source) -> None:
 
 
 def test_scans_are_copied_or_converted(source: Source) -> None:
-    build_dataset(make_config(source))
+    build_nnunet_dataset(make_dataset_config(source))
     out = source.root / "nnUNet_raw" / DATASET / "imagesTr"
     copied = out / "MSWAL_M1_0000.nii.gz"
     original = source.srcdata / MSWAL / "imagesTr/M1_0000.nii.gz"
@@ -106,7 +106,7 @@ def test_scans_are_copied_or_converted(source: Source) -> None:
 
 @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need admin")
 def test_symlink_mode(source: Source) -> None:
-    build_dataset(make_config(source, scan_link_mode="symlink"))
+    build_nnunet_dataset(make_dataset_config(source, scan_link_mode="symlink"))
     out = source.root / "nnUNet_raw" / DATASET / "imagesTr"
     linked = out / "MSWAL_M1_0000.nii.gz"
     assert linked.is_symlink()
@@ -124,7 +124,7 @@ def test_label_geometry_noise_is_snapped_to_scan(source: Source) -> None:
         multilabel_mask(),
         spacing=noisy,
     )
-    build_dataset(make_config(source))
+    build_nnunet_dataset(make_dataset_config(source))
     label = sitk.ReadImage(
         str(source.root / "nnUNet_raw" / DATASET / "labelsTr/MSWAL_M1.nii.gz")
     )
@@ -145,7 +145,7 @@ def test_misaligned_masks_fail_cleanly(source: Source) -> None:
     bigger = np.zeros((5, 6, 6), np.uint8)
     write_volume(source.srcdata / MSWAL / "labelsTr/M2.nii.gz", bigger)
 
-    result = build_dataset(make_config(source))
+    result = build_nnunet_dataset(make_dataset_config(source))
     errors = {f.case.case_id: f.error for f in result.failures}
     assert set(errors) == {"MSWAL_M1", "MSWAL_M2"}
     assert "origin" in errors["MSWAL_M1"]
@@ -161,28 +161,28 @@ def test_misaligned_masks_fail_cleanly(source: Source) -> None:
 
 
 def test_existing_output_is_protected(source: Source) -> None:
-    config = make_config(source)
-    build_dataset(config)
-    with pytest.raises(OutputExistsError, match="--overwrite"):
-        build_dataset(config)
+    config = make_dataset_config(source)
+    build_nnunet_dataset(config)
+    with pytest.raises(DatasetExistsError, match="--overwrite"):
+        build_nnunet_dataset(config)
 
     stray = config.dataset_dir / "imagesTr" / "stray_0000.nii.gz"
     stray.write_bytes(b"")
-    build_dataset(config, overwrite=True)
+    build_nnunet_dataset(config, overwrite=True)
     assert not stray.exists()
 
 
 def test_dataset_id_must_be_unique(source: Source) -> None:
     (source.root / "nnUNet_raw" / "Dataset007_Other").mkdir(parents=True)
-    with pytest.raises(OutputExistsError, match="already used"):
-        build_dataset(make_config(source))
+    with pytest.raises(DatasetExistsError, match="already used"):
+        build_nnunet_dataset(make_dataset_config(source))
 
 
 def test_dry_run_writes_nothing(source: Source) -> None:
-    result = build_dataset(make_config(source), dry_run=True)
+    result = build_nnunet_dataset(make_dataset_config(source), dry_run=True)
     assert (result.num_train, result.num_test) == (
-        sum(c.split == "Tr" for c in result.plan.cases),
-        sum(c.split == "Ts" for c in result.plan.cases),
+        sum(c.split == "Tr" for c in result.selection.cases),
+        sum(c.split == "Ts" for c in result.selection.cases),
     )
     assert result.num_train + result.num_test == 6
     assert not (source.root / "nnUNet_raw").exists()
@@ -192,14 +192,14 @@ def test_no_cases_is_an_error(source: Source) -> None:
     for row in source.rows:
         row["file_type"] = "scan" if row["file_type"] == "scan" else "other"
     source.save_csv()
-    with pytest.raises(PlanError, match="No cases planned"):
-        build_dataset(make_config(source))
+    with pytest.raises(CaseSelectionError, match="No cases selected"):
+        build_nnunet_dataset(make_dataset_config(source))
 
 
 def test_worker_pool_matches_serial(source: Source, tmp_path: Path) -> None:
-    serial = build_dataset(make_config(source, num_workers=1))
-    pooled = build_dataset(
-        make_config(source, nnunet_raw_dir=str(tmp_path / "pooled")),
+    serial = build_nnunet_dataset(make_dataset_config(source, num_workers=1))
+    pooled = build_nnunet_dataset(
+        make_dataset_config(source, nnunet_raw_dir=str(tmp_path / "pooled")),
         num_workers=2,
     )
     assert not pooled.failures
@@ -218,7 +218,7 @@ def test_worker_pool_matches_serial(source: Source, tmp_path: Path) -> None:
 
 
 def test_cli_dry_run_and_build(source: Source) -> None:
-    config_path = write_config(source)
+    config_path = write_dataset_config(source)
     runner = CliRunner()
 
     result = runner.invoke(cli, ["nnunet", str(config_path), "--dry-run"])
@@ -236,7 +236,7 @@ def test_cli_dry_run_and_build(source: Source) -> None:
 
 
 def test_cli_reports_config_errors(source: Source) -> None:
-    config_path = write_config(source, dataset_name="has space")
+    config_path = write_dataset_config(source, dataset_name="has space")
     result = CliRunner().invoke(cli, ["nnunet", str(config_path)])
     assert result.exit_code == 1
     assert "dataset_name" in result.output
@@ -248,6 +248,6 @@ def test_cli_exits_nonzero_when_cases_fail(source: Source) -> None:
         multilabel_mask(),
         origin=(99.0, 0.0, 0.0),
     )
-    result = CliRunner().invoke(cli, ["nnunet", str(write_config(source))])
+    result = CliRunner().invoke(cli, ["nnunet", str(write_dataset_config(source))])
     assert result.exit_code == 1
     assert "failed=1" in result.output

@@ -6,7 +6,7 @@
 ```console
 imgnet query -c "Abdomen Atlas 3" -c MSWAL -o query_results
 imgnet download query_results/query_results.csv -o imgnet_output
-imgnet nnunet config.json --dry-run   # check the plan
+imgnet nnunet config.json --dry-run   # check which cases would be written
 imgnet nnunet config.json -j 16       # write the dataset
 ```
 

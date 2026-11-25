@@ -1,6 +1,6 @@
 """Turn query results into a list of nnU-Net cases (no image I/O).
 
-Planning decides, for every sample, which scan and which masks to use, which
+Case selection decides, for every sample, which scan and which masks to use, which
 split it lands in and what its case ID is. All ambiguity is reported here,
 before anything is written.
 """
@@ -17,14 +17,14 @@ import numpy as np
 import pandas as pd
 
 from imgnet.loggers import logger
-from imgnet.nnunet.config import Regex
+from imgnet.nnunet.dataset_config import Regex
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from imgnet.nnunet.config import (
+    from imgnet.nnunet.dataset_config import (
         CollectionConfig,
-        NnUNetConfig,
+        NnUNetDatasetConfig,
         Selector,
     )
 
@@ -34,12 +34,12 @@ _MAX_EXAMPLES = 5
 _INVALID_ID_CHARS = re.compile(r"[^A-Za-z0-9_-]")
 
 
-class PlanError(ValueError):
+class CaseSelectionError(ValueError):
     """Raised when the query results can't be turned into cases."""
 
 
 @dataclass
-class Case:
+class SelectedCase:
     """One nnU-Net case: a scan plus the masks that make its label."""
 
     collection: str
@@ -57,7 +57,7 @@ class Case:
 
 
 @dataclass
-class Skipped:
+class SkippedSample:
     """A sample that was left out, and why."""
 
     collection: str
@@ -66,11 +66,11 @@ class Skipped:
 
 
 @dataclass
-class Plan:
-    """Result of planning: cases to write and samples left out."""
+class CaseSelection:
+    """Result of case selection: cases to write and samples left out."""
 
-    cases: list[Case]
-    skipped: list[Skipped]
+    cases: list[SelectedCase]
+    skipped: list[SkippedSample]
 
 
 def read_query_results(path: Path) -> pd.DataFrame:
@@ -79,10 +79,12 @@ def read_query_results(path: Path) -> pd.DataFrame:
         return pd.read_csv(path, dtype=str, low_memory=False)
     except (OSError, pd.errors.ParserError) as e:
         msg = f"Could not read query results {path}: {e}"
-        raise PlanError(msg) from e
+        raise CaseSelectionError(msg) from e
 
 
-def plan_dataset(df: pd.DataFrame, config: NnUNetConfig) -> Plan:
+def select_cases(
+    df: pd.DataFrame, config: NnUNetDatasetConfig
+) -> CaseSelection:
     """Resolve scans, masks, splits and case IDs for every configured collection.
 
     Parameters
@@ -94,14 +96,14 @@ def plan_dataset(df: pd.DataFrame, config: NnUNetConfig) -> Plan:
 
     Raises
     ------
-    PlanError
+    CaseSelectionError
         If columns are missing, a selector is ambiguous, a split can't be
         made, or two cases would get the same ID.
     """
     _check_columns(df, config)
 
-    cases: list[Case] = []
-    skipped: list[Skipped] = []
+    cases: list[SelectedCase] = []
+    skipped: list[SkippedSample] = []
     for coll_cfg in config.collections:
         rows = df[df["Collection"] == coll_cfg.collection]
         coll_cases, coll_skipped = _resolve_collection(
@@ -125,7 +127,7 @@ def plan_dataset(df: pd.DataFrame, config: NnUNetConfig) -> Plan:
         skipped.extend(coll_skipped)
 
     _check_unique_case_ids(cases)
-    return Plan(cases=cases, skipped=skipped)
+    return CaseSelection(cases=cases, skipped=skipped)
 
 
 # ---------------------------------------------------------------------------
@@ -133,14 +135,14 @@ def plan_dataset(df: pd.DataFrame, config: NnUNetConfig) -> Plan:
 # ---------------------------------------------------------------------------
 
 
-def _check_columns(df: pd.DataFrame, config: NnUNetConfig) -> None:
+def _check_columns(df: pd.DataFrame, config: NnUNetDatasetConfig) -> None:
     missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
     if missing:
         msg = (
             f"Query results are missing required columns {missing}. "
             "Is this a query_results.csv from 'imgnet query'?"
         )
-        raise PlanError(msg)
+        raise CaseSelectionError(msg)
 
     present = set(df["Collection"].dropna().unique())
     configured = [c.collection for c in config.collections]
@@ -150,7 +152,7 @@ def _check_columns(df: pd.DataFrame, config: NnUNetConfig) -> None:
             f"Collections {absent} are configured but have no rows in the "
             f"query results. Collections present: {sorted(present)}"
         )
-        raise PlanError(msg)
+        raise CaseSelectionError(msg)
     ignored = sorted(present - set(configured))
     if ignored:
         logger.warning(
@@ -166,11 +168,11 @@ def _check_columns(df: pd.DataFrame, config: NnUNetConfig) -> None:
                 f"{coll_cfg.collection}: columns {unknown} are not in the "
                 f"query results. Available columns: {sorted(df.columns)}"
             )
-            raise PlanError(msg)
+            raise CaseSelectionError(msg)
 
 
-def _check_unique_case_ids(cases: list[Case]) -> None:
-    by_id: dict[str, list[Case]] = {}
+def _check_unique_case_ids(cases: list[SelectedCase]) -> None:
+    by_id: dict[str, list[SelectedCase]] = {}
     for case in cases:
         by_id.setdefault(case.case_id, []).append(case)
     clashes = {k: v for k, v in by_id.items() if len(v) > 1}
@@ -184,7 +186,7 @@ def _check_unique_case_ids(cases: list[Case]) -> None:
             "Set prefix_with_collection to true, or check SampleIDs that "
             "differ only by removed characters:\n  " + "\n  ".join(examples)
         )
-        raise PlanError(msg)
+        raise CaseSelectionError(msg)
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +238,7 @@ def _resolve_collection(
     rows: pd.DataFrame,
     cfg: CollectionConfig,
     input_dir: Path,
-) -> tuple[list[Case], list[Skipped]]:
+) -> tuple[list[SelectedCase], list[SkippedSample]]:
     name = cfg.collection
     base = select_rows(rows, cfg.selector)
     scans = rows[
@@ -254,8 +256,8 @@ def _resolve_collection(
 
     scan_ambiguity = _Ambiguity("scans")
     mask_ambiguity = _Ambiguity("masks")
-    cases: list[Case] = []
-    skipped: list[Skipped] = []
+    cases: list[SelectedCase] = []
+    skipped: list[SkippedSample] = []
 
     if cfg.method == "combine":
         masks = masks[masks[cfg.roi_column].isin(list(cfg.intensity_map))]
@@ -266,18 +268,20 @@ def _resolve_collection(
     for sid in _unique_sorted(rows["SampleID"]):
         scan_paths = scans_by_sid.get((sid,), [])
         if not scan_paths:
-            skipped.append(Skipped(name, sid, "no scan matched"))
+            skipped.append(SkippedSample(name, sid, "no scan matched"))
             continue
         if len(scan_paths) > 1:
             scan_ambiguity.add(sid, scan_paths)
             continue
-        case = Case(name, sid, coll_dir / scan_paths[0], cfg.method, [])
+        case = SelectedCase(
+            name, sid, coll_dir / scan_paths[0], cfg.method, []
+        )
         attach = _attach_roi_masks if cfg.method == "combine" else _attach_mask
         reason = attach(case, coll_dir, cfg, masks_by_key, mask_ambiguity)
         if reason is None:
             cases.append(case)
         elif reason != _AMBIGUOUS:
-            skipped.append(Skipped(name, sid, reason))
+            skipped.append(SkippedSample(name, sid, reason))
 
     for ambiguity in (scan_ambiguity, mask_ambiguity):
         if ambiguity.count:
@@ -287,7 +291,7 @@ def _resolve_collection(
                 "selector to pick one, e.g. on a phase or filepath column. "
                 "Examples:\n  " + "\n  ".join(ambiguity.examples)
             )
-            raise PlanError(msg)
+            raise CaseSelectionError(msg)
 
     cases, missing = _drop_missing_files(cases)
     skipped.extend(missing)
@@ -299,7 +303,7 @@ _AMBIGUOUS = "<ambiguous>"
 
 
 def _attach_mask(
-    case: Case,
+    case: SelectedCase,
     coll_dir: Path,
     cfg: CollectionConfig,
     masks_by_key: dict[tuple[str, ...], list[str]],
@@ -318,7 +322,7 @@ def _attach_mask(
 
 
 def _attach_roi_masks(
-    case: Case,
+    case: SelectedCase,
     coll_dir: Path,
     cfg: CollectionConfig,
     masks_by_key: dict[tuple[str, ...], list[str]],
@@ -344,10 +348,10 @@ def _attach_roi_masks(
 
 
 def _drop_missing_files(
-    cases: list[Case],
-) -> tuple[list[Case], list[Skipped]]:
-    kept: list[Case] = []
-    skipped: list[Skipped] = []
+    cases: list[SelectedCase],
+) -> tuple[list[SelectedCase], list[SkippedSample]]:
+    kept: list[SelectedCase] = []
+    skipped: list[SkippedSample] = []
     for case in cases:
         files = [case.scan, *case.masks]
         absent = [str(p) for p in files if not p.is_file()]
@@ -355,7 +359,9 @@ def _drop_missing_files(
             reason = f"file not found: {absent[0]}"
             if len(absent) > 1:
                 reason += f" (+{len(absent) - 1} more)"
-            skipped.append(Skipped(case.collection, case.sample_id, reason))
+            skipped.append(
+                SkippedSample(case.collection, case.sample_id, reason)
+            )
         else:
             kept.append(case)
     return kept, skipped
@@ -439,7 +445,7 @@ def _one_value_per_sample(
             f"{collection}: {len(conflicting)} samples have more than one "
             f"{column!r} value, e.g. {examples}"
         )
-        raise PlanError(msg)
+        raise CaseSelectionError(msg)
     return {
         sid: (values[sid][0] if sid in values else None) for sid in sample_ids
     }
@@ -469,13 +475,13 @@ def _splits_from_column(
             f"{cfg.collection}: {len(no_value)} samples have no {column!r} "
             f"value, e.g. {no_value[:_MAX_EXAMPLES]}"
         )
-        raise PlanError(msg)
+        raise CaseSelectionError(msg)
     if unmapped:
         msg = (
             f"{cfg.collection}: {column!r} values {sorted(unmapped)} are "
             "not listed in split.train or split.test"
         )
-        raise PlanError(msg)
+        raise CaseSelectionError(msg)
     return out
 
 
@@ -547,11 +553,11 @@ def make_case_id(
     sid = _INVALID_ID_CHARS.sub("", sample_id)
     if not sid:
         msg = f"{collection}: SampleID {sample_id!r} has no usable characters"
-        raise PlanError(msg)
+        raise CaseSelectionError(msg)
     if not prefix_with_collection:
         return sid
     prefix = _INVALID_ID_CHARS.sub("", collection)
     if not prefix:
         msg = f"Collection name {collection!r} has no usable characters"
-        raise PlanError(msg)
+        raise CaseSelectionError(msg)
     return f"{prefix}_{sid}"

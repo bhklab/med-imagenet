@@ -14,7 +14,7 @@ from imgnet.loggers import logger
 @click.option(
     "--dry-run",
     is_flag=True,
-    help="Plan the dataset and report counts without writing any files.",
+    help="Select cases and report counts without writing any files.",
 )
 @click.option(
     "--overwrite",
@@ -67,24 +67,24 @@ def nnunet(
       # Build with 16 worker processes
       imgnet nnunet config.json -j 16
     """
-    from imgnet.nnunet.build import OutputExistsError, build_dataset
-    from imgnet.nnunet.config import ConfigError, load_config
-    from imgnet.nnunet.plan import PlanError
+    from imgnet.nnunet.dataset_builder import DatasetExistsError, build_nnunet_dataset
+    from imgnet.nnunet.dataset_config import DatasetConfigError, load_dataset_config
+    from imgnet.nnunet.case_selection import CaseSelectionError
 
     try:
-        config = load_config(config_path)
-        result = build_dataset(
+        config = load_dataset_config(config_path)
+        result = build_nnunet_dataset(
             config,
             dry_run=dry_run,
             overwrite=overwrite,
             num_workers=num_workers,
         )
-    except (ConfigError, PlanError, OutputExistsError, FileNotFoundError) as e:
+    except (DatasetConfigError, CaseSelectionError, DatasetExistsError, FileNotFoundError) as e:
         raise click.ClickException(str(e)) from e
 
     summary = (
         f"train={result.num_train} test={result.num_test} "
-        f"skipped={len(result.plan.skipped)}"
+        f"skipped={len(result.selection.skipped)}"
     )
     if dry_run:
         click.echo(f"Dry run, nothing written. Would write {summary} to {result.dataset_dir}")

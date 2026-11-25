@@ -16,7 +16,7 @@ import SimpleITK as sitk
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from imgnet.nnunet.plan import Case
+    from imgnet.nnunet.case_selection import SelectedCase
 
 
 class GeometryError(ValueError):
@@ -34,7 +34,7 @@ class WriteOptions:
 
 
 @dataclass
-class CaseResult:
+class CaseWriteResult:
     """Outcome of writing one case."""
 
     case_id: str
@@ -55,18 +55,22 @@ def init_worker() -> None:
     sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
 
 
-def image_path(dataset_dir: Path, case: Case, file_ending: str) -> Path:
+def image_path(
+    dataset_dir: Path, case: SelectedCase, file_ending: str
+) -> Path:
     """Destination of the case's scan (channel 0)."""
     name = f"{case.case_id}_0000{file_ending}"
     return dataset_dir / f"images{case.split}" / name
 
 
-def label_path(dataset_dir: Path, case: Case, file_ending: str) -> Path:
+def label_path(
+    dataset_dir: Path, case: SelectedCase, file_ending: str
+) -> Path:
     """Destination of the case's label map."""
     return dataset_dir / f"labels{case.split}" / f"{case.case_id}{file_ending}"
 
 
-def write_case(case: Case, options: WriteOptions) -> CaseResult:
+def write_case(case: SelectedCase, options: WriteOptions) -> CaseWriteResult:
     """Build the label, then write scan and label for one case.
 
     On any error both outputs are removed, so a failed case never leaves a
@@ -74,7 +78,7 @@ def write_case(case: Case, options: WriteOptions) -> CaseResult:
     """
     img_dst = image_path(options.dataset_dir, case, options.file_ending)
     lbl_dst = label_path(options.dataset_dir, case, options.file_ending)
-    result = CaseResult(case.case_id, case.split)
+    result = CaseWriteResult(case.case_id, case.split)
     try:
         grid = _read_grid(case.scan)
         label = build_label(case, grid, options.geometry_tolerance, result)
@@ -88,7 +92,7 @@ def write_case(case: Case, options: WriteOptions) -> CaseResult:
 
 
 def build_label(
-    case: Case, grid: _Grid, tolerance: float, result: CaseResult
+    case: SelectedCase, grid: _Grid, tolerance: float, result: CaseWriteResult
 ) -> sitk.Image:
     """Combine or remap the case's masks into one label map on *grid*."""
     out: np.ndarray | None = None

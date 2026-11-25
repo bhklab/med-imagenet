@@ -15,85 +15,85 @@ import pandas as pd
 from tqdm import tqdm
 
 from imgnet.loggers import logger, tqdm_logging_redirect
-from imgnet.nnunet.images import (
-    CaseResult,
+from imgnet.nnunet.case_selection import (
+    TEST,
+    TRAIN,
+    CaseSelection,
+    CaseSelectionError,
+    SelectedCase,
+    SkippedSample,
+    read_query_results,
+    select_cases,
+)
+from imgnet.nnunet.case_writer import (
+    CaseWriteResult,
     WriteOptions,
     image_path,
     init_worker,
     label_path,
     write_case,
 )
-from imgnet.nnunet.plan import (
-    TEST,
-    TRAIN,
-    Case,
-    Plan,
-    PlanError,
-    Skipped,
-    plan_dataset,
-    read_query_results,
-)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from pathlib import Path
 
-    from imgnet.nnunet.config import NnUNetConfig
+    from imgnet.nnunet.dataset_config import NnUNetDatasetConfig
 
 MANIFEST_NAME = "imgnet_manifest.csv"
 _SUBDIRS = ("imagesTr", "labelsTr", "imagesTs", "labelsTs")
 
 
-class OutputExistsError(FileExistsError):
+class DatasetExistsError(FileExistsError):
     """The dataset folder (or its ID) is already in use."""
 
 
 @dataclass
-class Failure:
-    """A case that was planned but could not be written."""
+class FailedCase:
+    """A case that was selected but could not be written."""
 
-    case: Case
+    case: SelectedCase
     error: str
 
 
 @dataclass
-class BuildResult:
+class DatasetBuildResult:
     """Summary of a build (or a dry run)."""
 
     dataset_dir: Path
-    plan: Plan
-    written: list[Case] = field(default_factory=list)
-    failures: list[Failure] = field(default_factory=list)
+    selection: CaseSelection
+    written: list[SelectedCase] = field(default_factory=list)
+    failures: list[FailedCase] = field(default_factory=list)
     dry_run: bool = False
 
     @property
     def num_train(self) -> int:
-        """Training cases written (or planned, for a dry run)."""
-        cases = self.plan.cases if self.dry_run else self.written
+        """Training cases written (or selected, for a dry run)."""
+        cases = self.selection.cases if self.dry_run else self.written
         return sum(c.split == TRAIN for c in cases)
 
     @property
     def num_test(self) -> int:
-        """Test cases written (or planned, for a dry run)."""
-        cases = self.plan.cases if self.dry_run else self.written
+        """Test cases written (or selected, for a dry run)."""
+        cases = self.selection.cases if self.dry_run else self.written
         return sum(c.split == TEST for c in cases)
 
 
-def build_dataset(
-    config: NnUNetConfig,
+def build_nnunet_dataset(
+    config: NnUNetDatasetConfig,
     *,
     dry_run: bool = False,
     overwrite: bool = False,
     num_workers: int | None = None,
-) -> BuildResult:
-    """Plan and write an nnU-Net v2 raw dataset.
+) -> DatasetBuildResult:
+    """Select cases and write an nnU-Net v2 raw dataset.
 
     Parameters
     ----------
     config
-        Validated config, see :func:`imgnet.nnunet.config.load_config`.
+        Validated config, see :func:`imgnet.nnunet.dataset_config.load_dataset_config`.
     dry_run
-        Only plan and report; write nothing.
+        Only select cases and report; write nothing.
     overwrite
         Delete an existing dataset folder of the same name first.
     num_workers
@@ -101,7 +101,7 @@ def build_dataset(
 
     Returns
     -------
-    BuildResult
+    DatasetBuildResult
         What was written, skipped and failed. ``dataset.json`` only counts
         written cases, so failed cases never break nnU-Net's checks.
     """
@@ -110,17 +110,17 @@ def build_dataset(
         raise FileNotFoundError(msg)
 
     df = read_query_results(config.query_results_csv)
-    plan = plan_dataset(df, config)
-    result = BuildResult(config.dataset_dir, plan, dry_run=dry_run)
-    _log_plan(plan)
+    selection = select_cases(df, config)
+    result = DatasetBuildResult(config.dataset_dir, selection, dry_run=dry_run)
+    _log_selection(selection)
     if dry_run:
         return result
-    if not plan.cases:
-        msg = "No cases planned; every sample was skipped."
-        raise PlanError(msg)
-    if not any(c.split == TRAIN for c in plan.cases):
-        msg = "No training cases planned; nnU-Net needs at least one."
-        raise PlanError(msg)
+    if not selection.cases:
+        msg = "No cases selected; every sample was skipped."
+        raise CaseSelectionError(msg)
+    if not any(c.split == TRAIN for c in selection.cases):
+        msg = "No training cases selected; nnU-Net needs at least one."
+        raise CaseSelectionError(msg)
 
     _prepare_output(config, overwrite=overwrite)
     options = WriteOptions(
@@ -130,24 +130,24 @@ def build_dataset(
         geometry_tolerance=config.geometry_tolerance,
     )
     workers = num_workers or config.num_workers or available_cpus()
-    workers = max(1, min(workers, len(plan.cases)))
+    workers = max(1, min(workers, len(selection.cases)))
     logger.info(
         "Writing %d cases to %s with %d worker(s).",
-        len(plan.cases),
+        len(selection.cases),
         config.dataset_dir,
         workers,
     )
 
-    by_id = {c.case_id: c for c in plan.cases}
+    by_id = {c.case_id: c for c in selection.cases}
     with tqdm_logging_redirect():
-        for case_id, outcome in _run(plan.cases, options, workers):
+        for case_id, outcome in _run(selection.cases, options, workers):
             case = by_id[case_id]
-            if isinstance(outcome, CaseResult):
+            if isinstance(outcome, CaseWriteResult):
                 result.written.append(case)
                 for warning in outcome.warnings:
                     logger.warning(warning)
             else:
-                result.failures.append(Failure(case, outcome))
+                result.failures.append(FailedCase(case, outcome))
                 logger.error("Failed %s: %s", case_id, outcome)
 
     _write_dataset_json(config, result.written)
@@ -158,7 +158,7 @@ def build_dataset(
         config.dataset_dir,
         result.num_train,
         result.num_test,
-        len(plan.skipped),
+        len(selection.skipped),
         len(result.failures),
     )
     return result
@@ -177,8 +177,8 @@ def available_cpus() -> int:
 
 
 def _run(
-    cases: list[Case], options: WriteOptions, workers: int
-) -> Iterator[tuple[str, CaseResult | str]]:
+    cases: list[SelectedCase], options: WriteOptions, workers: int
+) -> Iterator[tuple[str, CaseWriteResult | str]]:
     """Yield (case_id, result or error message) as cases finish."""
     progress = tqdm(total=len(cases), desc="cases", unit="case")
     try:
@@ -199,7 +199,7 @@ def _run(
             }
             for future in as_completed(futures):
                 try:
-                    outcome: CaseResult | str = future.result()
+                    outcome: CaseWriteResult | str = future.result()
                 except Exception as e:  # noqa: BLE001 - report every failure
                     outcome = _describe(e)
                 yield futures[future], outcome
@@ -208,7 +208,9 @@ def _run(
         progress.close()
 
 
-def _attempt(case: Case, options: WriteOptions) -> CaseResult | str:
+def _attempt(
+    case: SelectedCase, options: WriteOptions
+) -> CaseWriteResult | str:
     try:
         return write_case(case, options)
     except Exception as e:  # noqa: BLE001 - report every failure
@@ -224,7 +226,7 @@ def _describe(error: Exception) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _prepare_output(config: NnUNetConfig, *, overwrite: bool) -> None:
+def _prepare_output(config: NnUNetDatasetConfig, *, overwrite: bool) -> None:
     dataset_dir = config.dataset_dir
     prefix = f"Dataset{config.dataset_id:03d}_"
     if config.nnunet_raw_dir.is_dir():
@@ -238,7 +240,7 @@ def _prepare_output(config: NnUNetConfig, *, overwrite: bool) -> None:
                 f"Dataset ID {config.dataset_id} is already used by {others} "
                 f"in {config.nnunet_raw_dir}; nnU-Net needs IDs to be unique."
             )
-            raise OutputExistsError(msg)
+            raise DatasetExistsError(msg)
 
     if dataset_dir.exists() and any(dataset_dir.iterdir()):
         if not overwrite:
@@ -247,7 +249,7 @@ def _prepare_output(config: NnUNetConfig, *, overwrite: bool) -> None:
                 "cases would end up in the dataset; use --overwrite to "
                 "replace it."
             )
-            raise OutputExistsError(msg)
+            raise DatasetExistsError(msg)
         logger.warning("Deleting existing dataset folder %s", dataset_dir)
         shutil.rmtree(dataset_dir)
 
@@ -255,7 +257,9 @@ def _prepare_output(config: NnUNetConfig, *, overwrite: bool) -> None:
         (dataset_dir / sub).mkdir(parents=True, exist_ok=True)
 
 
-def _write_dataset_json(config: NnUNetConfig, written: list[Case]) -> None:
+def _write_dataset_json(
+    config: NnUNetDatasetConfig, written: list[SelectedCase]
+) -> None:
     dataset = {
         "name": config.dataset_folder_name,
         "description": (
@@ -273,7 +277,7 @@ def _write_dataset_json(config: NnUNetConfig, written: list[Case]) -> None:
     path.write_text(json.dumps(dataset, indent=2) + "\n")
 
 
-def _write_manifest(dataset_dir: Path, result: BuildResult) -> None:
+def _write_manifest(dataset_dir: Path, result: DatasetBuildResult) -> None:
     """One row per sample: where it went, or why it didn't."""
     failed = {f.case.case_id: f.error for f in result.failures}
     rows = [
@@ -282,9 +286,9 @@ def _write_manifest(dataset_dir: Path, result: BuildResult) -> None:
             "failed" if c.case_id in failed else "written",
             failed.get(c.case_id, ""),
         )
-        for c in result.plan.cases
+        for c in result.selection.cases
     ]
-    rows += [_skipped_row(s) for s in result.plan.skipped]
+    rows += [_skipped_row(s) for s in result.selection.skipped]
     columns = [
         "collection", "sample_id", "case_id", "split", "status", "reason",
         "scan", "masks",
@@ -294,7 +298,9 @@ def _write_manifest(dataset_dir: Path, result: BuildResult) -> None:
     frame.to_csv(dataset_dir / MANIFEST_NAME, index=False)
 
 
-def _manifest_row(case: Case, status: str, reason: str) -> dict[str, str]:
+def _manifest_row(
+    case: SelectedCase, status: str, reason: str
+) -> dict[str, str]:
     return {
         "collection": case.collection,
         "sample_id": case.sample_id,
@@ -307,7 +313,7 @@ def _manifest_row(case: Case, status: str, reason: str) -> dict[str, str]:
     }
 
 
-def _skipped_row(skipped: Skipped) -> dict[str, str]:
+def _skipped_row(skipped: SkippedSample) -> dict[str, str]:
     return {
         "collection": skipped.collection,
         "sample_id": skipped.sample_id,
@@ -316,7 +322,9 @@ def _skipped_row(skipped: Skipped) -> dict[str, str]:
     }
 
 
-def _verify_counts(config: NnUNetConfig, result: BuildResult) -> None:
+def _verify_counts(
+    config: NnUNetDatasetConfig, result: DatasetBuildResult
+) -> None:
     """Every written case must have exactly its two files on disk."""
     missing = [
         str(p)
@@ -337,16 +345,16 @@ def _verify_counts(config: NnUNetConfig, result: BuildResult) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _log_plan(plan: Plan) -> None:
-    splits = Counter((c.collection, c.split) for c in plan.cases)
+def _log_selection(selection: CaseSelection) -> None:
+    splits = Counter((c.collection, c.split) for c in selection.cases)
     collections = sorted(
-        {c.collection for c in plan.cases}
-        | {s.collection for s in plan.skipped}
+        {c.collection for c in selection.cases}
+        | {s.collection for s in selection.skipped}
     )
     for name in collections:
         reasons = Counter(
             _reason_kind(s.reason)
-            for s in plan.skipped
+            for s in selection.skipped
             if s.collection == name
         )
         logger.info(

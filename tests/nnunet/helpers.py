@@ -14,7 +14,7 @@ import pandas as pd
 import pytest
 import SimpleITK as sitk
 
-from imgnet.nnunet.config import NnUNetConfig
+from imgnet.nnunet.dataset_config import NnUNetDatasetConfig
 
 SHAPE = (4, 6, 6)  # z, y, x
 SPACING = (0.8, 0.8, 2.0)
@@ -129,7 +129,7 @@ def make_source(root: Path) -> Source:
     return src
 
 
-def config_dict(src: Source, **overrides: object) -> dict:
+def dataset_config_dict(src: Source, **overrides: object) -> dict:
     config: dict = {
         "input_dir": str(src.srcdata),
         "query_results_csv": str(src.csv),
@@ -158,13 +158,13 @@ def config_dict(src: Source, **overrides: object) -> dict:
     return config
 
 
-def make_config(src: Source, **overrides: object) -> NnUNetConfig:
-    return NnUNetConfig.model_validate(config_dict(src, **overrides))
+def make_dataset_config(src: Source, **overrides: object) -> NnUNetDatasetConfig:
+    return NnUNetDatasetConfig.model_validate(dataset_config_dict(src, **overrides))
 
 
-def write_config(src: Source, **overrides: object) -> Path:
+def write_dataset_config(src: Source, **overrides: object) -> Path:
     path = src.root / "config.json"
-    path.write_text(json.dumps(config_dict(src, **overrides)))
+    path.write_text(json.dumps(dataset_config_dict(src, **overrides)))
     return path
 
 

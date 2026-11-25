@@ -1,4 +1,4 @@
-"""Planning: selectors, ambiguity, skips, splits and case IDs (no image I/O)."""
+"""Case selection: selectors, ambiguity, skips, splits and case IDs (no image I/O)."""
 
 from __future__ import annotations
 
@@ -8,12 +8,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from imgnet.nnunet.config import NnUNetConfig, Regex
-from imgnet.nnunet.plan import (
-    PlanError,
+from imgnet.nnunet.dataset_config import NnUNetDatasetConfig, Regex
+from imgnet.nnunet.case_selection import (
+    CaseSelectionError,
     assign_splits,
     make_case_id,
-    plan_dataset,
+    select_cases,
     read_query_results,
     select_rows,
 )
@@ -21,20 +21,20 @@ from tests.nnunet.helpers import (
     ATLAS,
     MSWAL,
     Source,
-    config_dict,
+    dataset_config_dict,
     liver_mask,
-    make_config,
+    make_dataset_config,
     write_volume,
 )
 
 
-def _plan(src: Source, **overrides: object):  # noqa: ANN202
-    config = make_config(src, **overrides)
-    return plan_dataset(read_query_results(src.csv), config)
+def _select(src: Source, **overrides: object):  # noqa: ANN202
+    config = make_dataset_config(src, **overrides)
+    return select_cases(read_query_results(src.csv), config)
 
 
 def _collections(src: Source, *changes: dict) -> list[dict]:
-    collections = config_dict(src)["collections"]
+    collections = dataset_config_dict(src)["collections"]
     for coll, change in zip(collections, changes):
         coll.update(change)
     return collections
@@ -70,8 +70,8 @@ def test_select_rows_value_forms() -> None:
 
 
 def test_plan_resolves_cases_and_skips(source: Source) -> None:
-    plan = _plan(source)
-    by_id = {c.case_id: c for c in plan.cases}
+    selection = _select(source)
+    by_id = {c.case_id: c for c in selection.cases}
     assert sorted(by_id) == [
         "AbdomenAtlas3_A1",
         "AbdomenAtlas3_A2",
@@ -89,17 +89,17 @@ def test_plan_resolves_cases_and_skips(source: Source) -> None:
     assert a1.labels == [1, 2]
     assert by_id["MSWAL_M1"].remap == {1: 1, 2: 2}
 
-    assert [(s.sample_id, s.reason) for s in plan.skipped] == [
+    assert [(s.sample_id, s.reason) for s in selection.skipped] == [
         ("A4", "missing ROIs ['kidney_lesion']")
     ]
 
 
 def test_allow_missing_rois_keeps_partial_samples(source: Source) -> None:
     collections = _collections(source, {"allow_missing_rois": True})
-    plan = _plan(source, collections=collections)
-    a4 = next(c for c in plan.cases if c.sample_id == "A4")
+    selection = _select(source, collections=collections)
+    a4 = next(c for c in selection.cases if c.sample_id == "A4")
     assert a4.labels == [1]
-    assert not plan.skipped
+    assert not selection.skipped
 
 
 def test_ambiguous_scans_fail_until_selected(source: Source) -> None:
@@ -112,12 +112,12 @@ def test_ambiguous_scans_fail_until_selected(source: Source) -> None:
     source.add(MSWAL, "M1", "scan", extra, Split="Tr", Phase="C+A")
     source.save_csv()
 
-    with pytest.raises(PlanError, match=r"MSWAL: 1 samples match more than one scan"):
-        _plan(source)
+    with pytest.raises(CaseSelectionError, match=r"MSWAL: 1 samples match more than one scan"):
+        _select(source)
 
     collections = _collections(source, {}, {"selector": {"Phase": "C+V"}})
-    plan = _plan(source, collections=collections)
-    m1 = next(c for c in plan.cases if c.sample_id == "M1")
+    selection = _select(source, collections=collections)
+    m1 = next(c for c in selection.cases if c.sample_id == "M1")
     assert m1.scan.name == "M1_0000.nii.gz"
 
 
@@ -127,13 +127,13 @@ def test_ambiguous_masks_fail_until_selected(source: Source) -> None:
     source.add(MSWAL, "M1", "mask", extra, Split="Tr", mask_type="anatomy")
     source.save_csv()
 
-    with pytest.raises(PlanError, match="more than one mask"):
-        _plan(source)
+    with pytest.raises(CaseSelectionError, match="more than one mask"):
+        _select(source)
 
     selector = {"mask_selector": {"filepath": {"regex": r"M\d\.nii"}}}
     collections = _collections(source, {}, selector)
-    plan = _plan(source, collections=collections)
-    m1 = next(c for c in plan.cases if c.sample_id == "M1")
+    selection = _select(source, collections=collections)
+    m1 = next(c for c in selection.cases if c.sample_id == "M1")
     assert [p.name for p in m1.masks] == ["M1.nii.gz"]
 
 
@@ -141,15 +141,15 @@ def test_duplicate_roi_masks_are_ambiguous(source: Source) -> None:
     source.add(ATLAS, "A1", "mask", "masks/A1/aorta.nii.gz",
                ROINames="liver_lesion", PatientID="P1")  # fmt: skip
     source.save_csv()
-    with pytest.raises(PlanError, match=r"A1 \(liver_lesion\)"):
-        _plan(source)
+    with pytest.raises(CaseSelectionError, match=r"A1 \(liver_lesion\)"):
+        _select(source)
 
 
 def test_missing_files_are_skipped(source: Source) -> None:
     (source.srcdata / MSWAL / "labelsTr/M2.nii.gz").unlink()
-    plan = _plan(source)
-    assert "M2" not in {c.sample_id for c in plan.cases}
-    reasons = {s.sample_id: s.reason for s in plan.skipped}
+    selection = _select(source)
+    assert "M2" not in {c.sample_id for c in selection.cases}
+    reasons = {s.sample_id: s.reason for s in selection.skipped}
     assert reasons["M2"].startswith("file not found:")
 
 
@@ -157,23 +157,23 @@ def test_samples_without_scan_or_mask_are_skipped(source: Source) -> None:
     source.add(MSWAL, "M9", "scan", "imagesTr/M9.nii.gz", Split="Ts")
     source.add(MSWAL, "M8", "mask", "labelsTr/M8.nii.gz", Split="Ts")
     source.save_csv()
-    reasons = {s.sample_id: s.reason for s in _plan(source).skipped}
+    reasons = {s.sample_id: s.reason for s in _select(source).skipped}
     assert reasons["M9"] == "no mask matched"
     assert reasons["M8"] == "no scan matched"
 
 
 def test_missing_columns_and_collections(source: Source) -> None:
     collections = _collections(source, {"scan_selector": {"Phase": "x"}})
-    with pytest.raises(PlanError, match=r"columns \['Phase'\] are not in"):
-        _plan(source, collections=collections)
+    with pytest.raises(CaseSelectionError, match=r"columns \['Phase'\] are not in"):
+        _select(source, collections=collections)
 
     collections = _collections(source, {"collection": "Nope"})
-    with pytest.raises(PlanError, match=r"\['Nope'\] are configured"):
-        _plan(source, collections=collections)
+    with pytest.raises(CaseSelectionError, match=r"\['Nope'\] are configured"):
+        _select(source, collections=collections)
 
     df = read_query_results(source.csv).drop(columns=["file_type"])
-    with pytest.raises(PlanError, match="missing required columns"):
-        plan_dataset(df, make_config(source))
+    with pytest.raises(CaseSelectionError, match="missing required columns"):
+        select_cases(df, make_dataset_config(source))
 
 
 # ---------------------------------------------------------------------------
@@ -182,7 +182,7 @@ def test_missing_columns_and_collections(source: Source) -> None:
 
 
 def test_split_column_is_used(source: Source) -> None:
-    splits = {c.sample_id: c.split for c in _plan(source).cases}
+    splits = {c.sample_id: c.split for c in _select(source).cases}
     assert (splits["M1"], splits["M2"], splits["M3"]) == ("Tr", "Tr", "Ts")
 
 
@@ -191,8 +191,8 @@ def test_split_column_unmapped_value_fails(source: Source) -> None:
         if row.get("Split") == "Ts":
             row["Split"] = "Va"
     source.save_csv()
-    with pytest.raises(PlanError, match=r"values \['Va'\] are not listed"):
-        _plan(source)
+    with pytest.raises(CaseSelectionError, match=r"values \['Va'\] are not listed"):
+        _select(source)
 
 
 def test_split_column_conflict_fails(source: Source) -> None:
@@ -200,8 +200,8 @@ def test_split_column_conflict_fails(source: Source) -> None:
         if row["SampleID"] == "M1" and row["file_type"] == "mask":
             row["Split"] = "Ts"
     source.save_csv()
-    with pytest.raises(PlanError, match="more than one 'Split' value"):
-        _plan(source)
+    with pytest.raises(CaseSelectionError, match="more than one 'Split' value"):
+        _select(source)
 
 
 def test_missing_split_column_falls_back_to_random(
@@ -210,8 +210,8 @@ def test_missing_split_column_falls_back_to_random(
     split = {"column": "OfficialSplit", "train": ["Tr"]}
     collections = _collections(source, {"split": split})
     with caplog.at_level(logging.WARNING, logger="imgnet"):
-        plan = _plan(source, collections=collections)
-    atlas = [c for c in plan.cases if c.collection == ATLAS]
+        selection = _select(source, collections=collections)
+    atlas = [c for c in selection.cases if c.collection == ATLAS]
     assert {c.split for c in atlas} == {"Tr", "Ts"}
     assert "using a random split" in caplog.text
 
@@ -221,8 +221,8 @@ def test_split_column_warns_that_group_column_is_ignored(
 ) -> None:
     collections = _collections(source, {}, {"group_column": "SampleID"})
     with caplog.at_level(logging.WARNING, logger="imgnet"):
-        plan = _plan(source, collections=collections)
-    splits = {c.sample_id: c.split for c in plan.cases}
+        selection = _select(source, collections=collections)
+    splits = {c.sample_id: c.split for c in selection.cases}
     assert splits["M3"] == "Ts"  # still from the Split column
     assert "group_column 'SampleID' only applies to random splits" in caplog.text
 
@@ -233,8 +233,8 @@ def test_split_fallback_uses_group_column(
     split = {"column": "OfficialSplit", "train": ["Tr"]}
     collections = _collections(source, {"split": split})
     with caplog.at_level(logging.WARNING, logger="imgnet"):
-        plan = _plan(source, collections=collections)
-    atlas = {c.sample_id: c.split for c in plan.cases if c.collection == ATLAS}
+        selection = _select(source, collections=collections)
+    atlas = {c.sample_id: c.split for c in selection.cases if c.collection == ATLAS}
     assert atlas["A1"] == atlas["A2"]  # same patient P1
     assert "grouped by 'PatientID'" in caplog.text
 
@@ -249,7 +249,7 @@ def _split_frame(n_patients: int, per_patient: int) -> pd.DataFrame:
 
 
 def _coll(**changes: object):  # noqa: ANN202
-    config = NnUNetConfig.model_validate(
+    config = NnUNetDatasetConfig.model_validate(
         {
             "input_dir": ".",
             "query_results_csv": "q.csv",
@@ -341,7 +341,7 @@ def test_make_case_id(
 
 
 def test_make_case_id_rejects_empty() -> None:
-    with pytest.raises(PlanError):
+    with pytest.raises(CaseSelectionError):
         make_case_id("C", "...", prefix_with_collection=True)
 
 
@@ -350,6 +350,6 @@ def test_case_id_collisions_fail(source: Source) -> None:
         if row["Collection"] == MSWAL:
             row["SampleID"] = row["SampleID"].replace("M", "A")
     source.save_csv()
-    with pytest.raises(PlanError, match="shared by more than one sample"):
-        _plan(source, prefix_with_collection=False)
-    _plan(source, prefix_with_collection=True)  # prefix keeps them apart
+    with pytest.raises(CaseSelectionError, match="shared by more than one sample"):
+        _select(source, prefix_with_collection=False)
+    _select(source, prefix_with_collection=True)  # prefix keeps them apart

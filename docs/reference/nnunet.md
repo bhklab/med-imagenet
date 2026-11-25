@@ -2,10 +2,10 @@
 
 ::: imgnet.nnunet
 
-::: imgnet.nnunet.config
+::: imgnet.nnunet.dataset_config
 
-::: imgnet.nnunet.plan
+::: imgnet.nnunet.case_selection
 
-::: imgnet.nnunet.images
+::: imgnet.nnunet.case_writer
 
-::: imgnet.nnunet.build
+::: imgnet.nnunet.dataset_builder

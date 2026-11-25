@@ -8,21 +8,21 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from imgnet.nnunet.config import (
-    ConfigError,
-    NnUNetConfig,
+from imgnet.nnunet.dataset_config import (
+    DatasetConfigError,
+    NnUNetDatasetConfig,
     Regex,
-    load_config,
+    load_dataset_config,
 )
-from tests.nnunet.helpers import Source, config_dict
+from tests.nnunet.helpers import Source, dataset_config_dict
 
 
-def _validate(src: Source, **overrides: object) -> NnUNetConfig:
-    return NnUNetConfig.model_validate(config_dict(src, **overrides))
+def _validate(src: Source, **overrides: object) -> NnUNetDatasetConfig:
+    return NnUNetDatasetConfig.model_validate(dataset_config_dict(src, **overrides))
 
 
 def _collection(src: Source, index: int = 0, **changes: object) -> list:
-    collections = config_dict(src)["collections"]
+    collections = dataset_config_dict(src)["collections"]
     collections[index].update(changes)
     return collections
 
@@ -114,7 +114,7 @@ def test_unknown_keys_are_rejected(source: Source) -> None:
 
 
 def test_duplicate_collections_rejected(source: Source) -> None:
-    first = config_dict(source)["collections"][0]
+    first = dataset_config_dict(source)["collections"][0]
     with pytest.raises(ValidationError, match="more than once"):
         _validate(source, collections=[first, first])
 
@@ -145,7 +145,7 @@ def test_invalid_regex_rejected(source: Source) -> None:
 def test_load_config_resolves_relative_paths(tmp_path: Path) -> None:
     sub = tmp_path / "configs"
     sub.mkdir()
-    raw = config_dict(
+    raw = dataset_config_dict(
         Source(tmp_path, tmp_path / "srcdata", tmp_path / "q.csv", []),
         input_dir="../srcdata",
         query_results_csv="q.csv",
@@ -153,19 +153,19 @@ def test_load_config_resolves_relative_paths(tmp_path: Path) -> None:
     )
     path = sub / "config.json"
     path.write_text(json.dumps(raw))
-    config = load_config(path)
+    config = load_dataset_config(path)
     assert config.input_dir.resolve() == (tmp_path / "srcdata").resolve()
     assert config.query_results_csv == sub.resolve() / "q.csv"
     assert config.nnunet_raw_dir == sub.resolve() / "raw"
 
 
 def test_load_config_errors(tmp_path: Path) -> None:
-    with pytest.raises(ConfigError, match="Could not read"):
-        load_config(tmp_path / "missing.json")
+    with pytest.raises(DatasetConfigError, match="Could not read"):
+        load_dataset_config(tmp_path / "missing.json")
     bad = tmp_path / "bad.json"
     bad.write_text("{not json")
-    with pytest.raises(ConfigError, match="Could not read"):
-        load_config(bad)
+    with pytest.raises(DatasetConfigError, match="Could not read"):
+        load_dataset_config(bad)
     bad.write_text("{}")
-    with pytest.raises(ConfigError, match="Invalid config"):
-        load_config(bad)
+    with pytest.raises(DatasetConfigError, match="Invalid config"):
+        load_dataset_config(bad)

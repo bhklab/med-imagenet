@@ -1,6 +1,6 @@
 """Configuration models for building nnU-Net v2 raw datasets.
 
-The configuration is a JSON file validated by [`NnUNetConfig`][imgnet.nnunet.config.NnUNetConfig].
+The configuration is a JSON file validated by [`NnUNetDatasetConfig`][imgnet.nnunet.dataset_config.NnUNetDatasetConfig].
 Relative paths in the file are resolved against the file's own directory.
 """
 
@@ -23,7 +23,7 @@ from pydantic import (
 _DATASET_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
-class ConfigError(ValueError):
+class DatasetConfigError(ValueError):
     """Raised when an nnU-Net config file is missing or invalid."""
 
 
@@ -185,7 +185,7 @@ class CollectionConfig(BaseModel):
         return cols
 
 
-class NnUNetConfig(BaseModel):
+class NnUNetDatasetConfig(BaseModel):
     """Configuration for ``imgnet nnunet``."""
 
     model_config = ConfigDict(extra="forbid")
@@ -272,7 +272,7 @@ class NnUNetConfig(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def _check_collections(self) -> NnUNetConfig:
+    def _check_collections(self) -> NnUNetDatasetConfig:
         names = [c.collection for c in self.collections]
         dupes = sorted({n for n in names if names.count(n) > 1})
         if dupes:
@@ -300,14 +300,14 @@ class NnUNetConfig(BaseModel):
         return self.nnunet_raw_dir / self.dataset_folder_name
 
 
-def load_config(path: Path | str) -> NnUNetConfig:
+def load_dataset_config(path: Path | str) -> NnUNetDatasetConfig:
     """Read and validate a config file.
 
     Relative paths are resolved against the config file's directory.
 
     Raises
     ------
-    ConfigError
+    DatasetConfigError
         If the file can't be read or doesn't validate.
     """
     path = Path(path)
@@ -315,12 +315,12 @@ def load_config(path: Path | str) -> NnUNetConfig:
         raw = json.loads(path.read_text())
     except (OSError, json.JSONDecodeError) as e:
         msg = f"Could not read config {path}: {e}"
-        raise ConfigError(msg) from e
+        raise DatasetConfigError(msg) from e
     try:
-        config = NnUNetConfig.model_validate(raw)
+        config = NnUNetDatasetConfig.model_validate(raw)
     except ValidationError as e:
         msg = f"Invalid config {path}:\n{e}"
-        raise ConfigError(msg) from e
+        raise DatasetConfigError(msg) from e
 
     base = path.resolve().parent
     for field in ("input_dir", "query_results_csv", "nnunet_raw_dir"):
