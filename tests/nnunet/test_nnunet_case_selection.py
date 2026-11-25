@@ -49,18 +49,30 @@ def test_select_rows_value_forms() -> None:
     df = pd.DataFrame(
         {
             "Phase": ["C+V", "C+A", None, "DWI"],
-            "ImageID": ["1", "2", "3", "10"],
+            "ImageID": ["1", "2.0", "3", "10"],
+            "Score": ["0.5", "1.25", None, "x"],
+            "Flag": ["True", "False", "1", None],
         }
     )
     assert select_rows(df, {}).tolist() == [True] * 4
     assert select_rows(df, {"Phase": "C+V"}).tolist() == [1, 0, 0, 0]
     assert select_rows(df, {"Phase": ["C+V", "DWI"]}).tolist() == [1, 0, 0, 1]
-    # Numbers are compared as text, so 1 matches "1" but not "10".
+    # Whole numbers match "2" and "2.0" (imgnet query writes int columns as
+    # floats), but 1 must not match "10".
     assert select_rows(df, {"ImageID": 1}).tolist() == [1, 0, 0, 0]
+    assert select_rows(df, {"ImageID": 2}).tolist() == [0, 1, 0, 0]
+    assert select_rows(df, {"ImageID": [2, 10]}).tolist() == [0, 1, 0, 1]
+    # A string is compared as text: "2" doesn't match "2.0".
+    assert select_rows(df, {"ImageID": "2"}).tolist() == [0, 0, 0, 0]
+    # Floats compare numerically; text that isn't a number never matches.
+    assert select_rows(df, {"Score": 1.25}).tolist() == [0, 1, 0, 0]
+    assert select_rows(df, {"Score": 0.50}).tolist() == [1, 0, 0, 0]
+    # Booleans are text, and True must not match "1".
+    assert select_rows(df, {"Flag": True}).tolist() == [1, 0, 0, 0]
     # Regex is searched; missing values never match.
     regex = {"Phase": Regex(regex=r"^C\+")}
     assert select_rows(df, regex).tolist() == [1, 1, 0, 0]
-    both = {"Phase": Regex(regex="C"), "ImageID": ["2", "10"]}
+    both = {"Phase": Regex(regex="C"), "ImageID": ["2.0", "10"]}
     assert select_rows(df, both).tolist() == [0, 1, 0, 0]
 
 
@@ -213,7 +225,30 @@ def test_missing_split_column_falls_back_to_random(
         selection = _select(source, collections=collections)
     atlas = [c for c in selection.cases if c.collection == ATLAS]
     assert {c.split for c in atlas} == {"Tr", "Ts"}
+    assert "'OfficialSplit' is not in the query results" in caplog.text
     assert "using a random split" in caplog.text
+
+
+def test_split_column_typo_suggests_close_names(
+    source: Source, caplog: pytest.LogCaptureFixture
+) -> None:
+    collections = _collections(
+        source, {}, {"split": {"column": "Splt", "train": ["Tr"]}}
+    )
+    with caplog.at_level(logging.WARNING, logger="imgnet"):
+        _select(source, collections=collections)
+    assert "did you mean ['Split']" in caplog.text
+
+
+def test_split_column_empty_for_collection_is_reported_as_such(
+    source: Source, caplog: pytest.LogCaptureFixture
+) -> None:
+    # 'Split' exists (MSWAL rows) but has no values for Abdomen Atlas 3.
+    split = {"column": "Split", "train": ["Tr"]}
+    collections = _collections(source, {"split": split})
+    with caplog.at_level(logging.WARNING, logger="imgnet"):
+        _select(source, collections=collections)
+    assert "'Split' has no values for this collection" in caplog.text
 
 
 def test_split_column_warns_that_group_column_is_ignored(
@@ -248,7 +283,7 @@ def _split_frame(n_patients: int, per_patient: int) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _coll(**changes: object):  # noqa: ANN202
+def _coll(collection: str = "C", **changes: object):  # noqa: ANN202
     config = NnUNetDatasetConfig.model_validate(
         {
             "input_dir": ".",
@@ -259,7 +294,7 @@ def _coll(**changes: object):  # noqa: ANN202
             "labels": {"background": 0, "a": 1},
             "collections": [
                 {
-                    "collection": "C",
+                    "collection": collection,
                     "method": "combine",
                     "intensity_map": {"a": 1},
                     **changes,
@@ -310,14 +345,62 @@ def test_random_split_edge_sizes(
     assert sum(v == "Tr" for v in splits.values()) == n - expected_test
 
 
-def test_missing_group_value_splits_sample_alone() -> None:
-    df = _split_frame(n_patients=4, per_patient=2)
-    df.loc[0, "Patient"] = np.nan
+def test_missing_group_value_splits_sample_alone(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # 10 samples, none with a patient value. If they were lumped into one
+    # group, everything would go to training; each must be its own group.
+    df = _split_frame(n_patients=10, per_patient=1)
+    df["Patient"] = np.nan
+    with caplog.at_level(logging.WARNING, logger="imgnet"):
+        splits = assign_splits(
+            df, df["SampleID"].tolist(), _coll(group_column="Patient"),
+            test_size=0.5, random_state=0,
+        )  # fmt: skip
+    assert sum(v == "Ts" for v in splits.values()) == 5
+    assert "10 samples have no 'Patient' value" in caplog.text
+
+
+def test_random_split_is_stable_when_samples_change() -> None:
+    df = _split_frame(n_patients=100, per_patient=1)
+    sids = df["SampleID"].tolist()
+    coll = _coll()
+    before = assign_splits(df, sids, coll, test_size=0.2, random_state=7)
+    for removed in sids[:20]:
+        kept = [s for s in sids if s != removed]
+        after = assign_splits(df, kept, coll, test_size=0.2, random_state=7)
+        moved = [s for s in kept if after[s] != before[s]]
+        assert len(moved) <= 1, (removed, moved)
+        # Removing a sample never pushes a test sample into training.
+        assert not any(before[s] == "Ts" and after[s] == "Tr" for s in moved)
+
+
+def test_random_split_seeds_and_collections_are_independent() -> None:
+    df = _split_frame(n_patients=200, per_patient=1)
+    sids = df["SampleID"].tolist()
+
+    def test_set(seed: int, collection: str = "C") -> set[str]:
+        splits = assign_splits(
+            df, sids, _coll(collection=collection), test_size=0.2,
+            random_state=seed,
+        )  # fmt: skip
+        return {s for s, v in splits.items() if v == "Ts"}
+
+    base = test_set(1)
+    assert len(base) == 40
+    # Independent 20% test sets overlap by about 8 samples; a weak hash
+    # (e.g. CRC) gives near-identical or disjoint sets instead.
+    for other in (test_set(2), test_set(3), test_set(1, collection="D")):
+        assert len(other) == 40
+        assert 0 < len(base & other) < 20
+
+
+def test_split_size_is_not_inflated_by_float_error() -> None:
+    df = _split_frame(n_patients=100, per_patient=1)
     splits = assign_splits(
-        df, df["SampleID"].tolist(), _coll(group_column="Patient"),
-        test_size=0.5, random_state=0,
-    )  # fmt: skip
-    assert set(splits) == set(df["SampleID"])
+        df, df["SampleID"].tolist(), _coll(), test_size=0.07, random_state=0
+    )
+    assert sum(v == "Ts" for v in splits.values()) == 7  # not ceil(7.0000001)
 
 
 # ---------------------------------------------------------------------------
@@ -353,3 +436,91 @@ def test_case_id_collisions_fail(source: Source) -> None:
     with pytest.raises(CaseSelectionError, match="shared by more than one sample"):
         _select(source, prefix_with_collection=False)
     _select(source, prefix_with_collection=True)  # prefix keeps them apart
+
+
+def test_case_ids_differing_only_by_letter_case_fail(source: Source) -> None:
+    # MSWAL_M1 and MSWAL_m1 would be the same file on macOS and Windows.
+    for row in source.rows:
+        if row["Collection"] == MSWAL and row["SampleID"] == "M2":
+            row["SampleID"] = "m1"
+    source.save_csv()
+    with pytest.raises(CaseSelectionError, match="ignoring letter case"):
+        _select(source)
+
+
+# ---------------------------------------------------------------------------
+# Configuration mistakes that must not pass silently
+# ---------------------------------------------------------------------------
+
+
+def test_misspelled_roi_fails_with_suggestions(source: Source) -> None:
+    for allow_missing in (False, True):
+        collections = _collections(
+            source,
+            {
+                "intensity_map": {"liver_lesoin": 1, "kidney_lesion": 2},
+                "allow_missing_rois": allow_missing,
+            },
+        )
+        with pytest.raises(CaseSelectionError) as info:
+            _select(source, collections=collections)
+        message = str(info.value)
+        assert "ROIs ['liver_lesoin'] have no masks" in message
+        assert "'liver_lesion'" in message  # close match
+        assert "'aorta'" in message  # available ROI names are listed
+
+
+def test_collection_without_cases_fails(source: Source) -> None:
+    collections = _collections(source, {}, {"mask_selector": {"Split": "x"}})
+    with pytest.raises(CaseSelectionError, match="MSWAL: no cases selected"):
+        _select(source, collections=collections)
+
+
+def test_wrong_input_dir_gets_a_hint(source: Source) -> None:
+    with pytest.raises(CaseSelectionError) as info:
+        _select(source, input_dir=str(source.root))  # parent of srcdata
+    message = str(info.value)
+    assert "no cases selected" in message
+    assert "check that input_dir points at the download folder" in message
+    assert "'Abdomen Atlas 3'" in message
+
+
+def test_no_training_cases_fails(source: Source) -> None:
+    split = {"column": "Split", "train": ["none"], "test": ["Tr", "Ts"]}
+    collections = [_collections(source, {}, {"split": split})[1]]
+    with pytest.raises(CaseSelectionError, match="No training cases"):
+        _select(source, collections=collections)
+
+
+def test_modality_warnings(
+    source: Source, caplog: pytest.LogCaptureFixture
+) -> None:
+    for row in source.rows:
+        row["Modality"] = "CT" if row["Collection"] == ATLAS else "MR"
+    source.save_csv()
+    with caplog.at_level(logging.WARNING, logger="imgnet"):
+        _select(source)
+    assert "mixed modalities {'CT': 3, 'MR': 3}" in caplog.text
+
+    caplog.clear()
+    collections = [_collections(source)[1]]
+    with caplog.at_level(logging.WARNING, logger="imgnet"):
+        _select(source, collections=collections)
+    assert "Selected scans are MR but channel_name is 'CT'" in caplog.text
+
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="imgnet"):
+        _select(source, collections=collections, channel_name="mr")
+    assert "channel_name" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "content", [b"", b"\xff\xfe\x00bad", b'a,b\n"unterminated']
+)
+def test_unreadable_query_results_fail_cleanly(
+    tmp_path, content: bytes  # noqa: ANN001
+) -> None:
+    path = tmp_path / "q.csv"
+    path.write_bytes(content)
+    with pytest.raises(CaseSelectionError, match="Could not read query results"):
+        read_query_results(path)

@@ -20,11 +20,9 @@ from pydantic import (
     model_validator,
 )
 
+from imgnet.nnunet.errors import DatasetConfigError
+
 _DATASET_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
-
-
-class DatasetConfigError(ValueError):
-    """Raised when an nnU-Net config file is missing or invalid."""
 
 
 class Regex(BaseModel):
@@ -147,8 +145,13 @@ class CollectionConfig(BaseModel):
             msg = f"{self.collection}: intensity_map is empty"
             raise ValueError(msg)
         if self.method == "remap":
+            # Only non-default values are an error, so a dumped config
+            # (which spells out every default) still validates.
+            fields = type(self).model_fields
             combine_only = sorted(
-                {"roi_column", "allow_missing_rois"} & self.model_fields_set
+                name
+                for name in ("roi_column", "allow_missing_rois")
+                if getattr(self, name) != fields[name].default
             )
             if combine_only:
                 msg = (
@@ -219,7 +222,11 @@ class NnUNetDatasetConfig(BaseModel):
     )
     file_ending: Literal[".nii.gz", ".nii", ".mha", ".nrrd"] = ".nii.gz"
     test_size: float = Field(default=0.2, ge=0.0, lt=1.0)
-    random_state: int = 42
+    random_state: int = Field(
+        default=42,
+        ge=0,
+        description="Seed for random splits (non-negative integer).",
+    )
     prefix_with_collection: bool = Field(
         default=True,
         description="Case IDs are '<Collection>_<SampleID>' when true.",
@@ -312,7 +319,7 @@ def load_dataset_config(path: Path | str) -> NnUNetDatasetConfig:
     """
     path = Path(path)
     try:
-        raw = json.loads(path.read_text())
+        raw = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as e:
         msg = f"Could not read config {path}: {e}"
         raise DatasetConfigError(msg) from e

@@ -89,7 +89,7 @@ def test_remap_keys_must_not_repeat_a_value(source: Source) -> None:
 
 
 @pytest.mark.parametrize(
-    "field", [{"roi_column": "ROINames"}, {"allow_missing_rois": False}]
+    "field", [{"roi_column": "Label"}, {"allow_missing_rois": True}]
 )
 def test_combine_only_fields_rejected_on_remap(
     source: Source, field: dict
@@ -97,6 +97,12 @@ def test_combine_only_fields_rejected_on_remap(
     collections = _collection(source, 1, **field)
     with pytest.raises(ValidationError, match="only apply to method 'combine'"):
         _validate(source, collections=collections)
+
+
+def test_config_round_trips_through_model_dump(source: Source) -> None:
+    config = _validate(source)
+    again = NnUNetDatasetConfig.model_validate(config.model_dump())
+    assert again == config
 
 
 def test_combine_labels_must_be_positive(source: Source) -> None:
@@ -157,6 +163,22 @@ def test_load_config_resolves_relative_paths(tmp_path: Path) -> None:
     assert config.input_dir.resolve() == (tmp_path / "srcdata").resolve()
     assert config.query_results_csv == sub.resolve() / "q.csv"
     assert config.nnunet_raw_dir == sub.resolve() / "raw"
+
+
+def test_random_state_must_be_non_negative(source: Source) -> None:
+    with pytest.raises(ValidationError, match="random_state"):
+        _validate(source, random_state=-1)
+
+
+def test_load_config_reads_utf8(tmp_path: Path) -> None:
+    raw = dataset_config_dict(
+        Source(tmp_path, tmp_path / "srcdata", tmp_path / "q.csv", [])
+    )
+    raw["collections"][0]["collection"] = "Ünïcode Atlas"
+    path = tmp_path / "config.json"
+    path.write_bytes(json.dumps(raw, ensure_ascii=False).encode("utf-8"))
+    config = load_dataset_config(path)
+    assert config.collections[0].collection == "Ünïcode Atlas"
 
 
 def test_load_config_errors(tmp_path: Path) -> None:

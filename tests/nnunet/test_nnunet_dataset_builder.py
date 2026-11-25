@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import subprocess
 import sys
 from pathlib import Path
 
@@ -13,8 +15,16 @@ import SimpleITK as sitk
 from click.testing import CliRunner
 
 from imgnet.cli.__main__ import cli
-from imgnet.nnunet.dataset_builder import MANIFEST_NAME, DatasetExistsError, build_nnunet_dataset
+from imgnet.nnunet import dataset_builder
 from imgnet.nnunet.case_selection import CaseSelectionError
+from imgnet.nnunet.case_writer import CaseJob, WriteOptions, image_path
+from imgnet.nnunet.dataset_builder import (
+    MANIFEST_NAME,
+    WORKER_DIED,
+    build_nnunet_dataset,
+    verify_dataset_files,
+)
+from imgnet.nnunet.errors import DatasetExistsError, DatasetOutputError
 from tests.nnunet.helpers import (
     ATLAS,
     MSWAL,
@@ -117,14 +127,29 @@ def test_symlink_mode(source: Source) -> None:
     assert not (out / "MSWAL_M2_0000.nii.gz").is_symlink()
 
 
+def _write_mask_with_geometry(
+    path: Path, spacing: tuple, origin: tuple, direction: tuple
+) -> None:
+    image = sitk.GetImageFromArray(multilabel_mask())
+    image.SetSpacing(spacing)
+    image.SetOrigin(origin)
+    image.SetDirection(direction)
+    sitk.WriteImage(image, str(path))
+
+
+IDENTITY = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+
+
 def test_label_geometry_noise_is_snapped_to_scan(source: Source) -> None:
-    noisy = (SPACING[0] + 1e-5, SPACING[1], SPACING[2] - 1e-5)
-    write_volume(
+    noisy_direction = (1.0, 2e-4, 0.0, -2e-4, 1.0, 0.0, 0.0, 0.0, 1.0)
+    _write_mask_with_geometry(
         source.srcdata / MSWAL / "labelsTr/M1.nii.gz",
-        multilabel_mask(),
-        spacing=noisy,
+        spacing=(SPACING[0] + 1e-5, SPACING[1], SPACING[2] - 1e-5),
+        origin=(ORIGIN[0] + 4e-4, ORIGIN[1] - 4e-4, ORIGIN[2]),
+        direction=noisy_direction,
     )
-    build_nnunet_dataset(make_dataset_config(source))
+    result = build_nnunet_dataset(make_dataset_config(source))
+    assert not result.failures
     label = sitk.ReadImage(
         str(source.root / "nnUNet_raw" / DATASET / "labelsTr/MSWAL_M1.nii.gz")
     )
@@ -133,6 +158,21 @@ def test_label_geometry_noise_is_snapped_to_scan(source: Source) -> None:
     )
     assert label.GetSpacing() == scan.GetSpacing()
     assert label.GetOrigin() == scan.GetOrigin()
+    assert label.GetDirection() == scan.GetDirection() == IDENTITY
+
+
+def test_direction_mismatch_fails_the_case(source: Source) -> None:
+    flipped = (-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+    _write_mask_with_geometry(
+        source.srcdata / MSWAL / "labelsTr/M1.nii.gz",
+        spacing=SPACING,
+        origin=ORIGIN,
+        direction=flipped,
+    )
+    result = build_nnunet_dataset(make_dataset_config(source))
+    errors = {f.case.case_id: f.error for f in result.failures}
+    assert list(errors) == ["MSWAL_M1"]
+    assert "direction" in errors["MSWAL_M1"]
 
 
 def test_misaligned_masks_fail_cleanly(source: Source) -> None:
@@ -188,12 +228,15 @@ def test_dry_run_writes_nothing(source: Source) -> None:
     assert not (source.root / "nnUNet_raw").exists()
 
 
-def test_no_cases_is_an_error(source: Source) -> None:
+def test_query_results_without_masks_are_an_error(source: Source) -> None:
     for row in source.rows:
         row["file_type"] = "scan" if row["file_type"] == "scan" else "other"
     source.save_csv()
-    with pytest.raises(CaseSelectionError, match="No cases selected"):
+    with pytest.raises(CaseSelectionError, match="have no masks"):
         build_nnunet_dataset(make_dataset_config(source))
+    collections = [make_dataset_config(source).model_dump()["collections"][1]]
+    with pytest.raises(CaseSelectionError, match="MSWAL: no cases selected"):
+        build_nnunet_dataset(make_dataset_config(source, collections=collections))
 
 
 def test_worker_pool_matches_serial(source: Source, tmp_path: Path) -> None:
@@ -251,3 +294,128 @@ def test_cli_exits_nonzero_when_cases_fail(source: Source) -> None:
     result = CliRunner().invoke(cli, ["nnunet", str(write_dataset_config(source))])
     assert result.exit_code == 1
     assert "failed=1" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Dry run, cleanup, verification, reporting
+# ---------------------------------------------------------------------------
+
+
+def test_dry_run_runs_the_output_checks(source: Source) -> None:
+    config = make_dataset_config(source)
+    build_nnunet_dataset(config)
+    with pytest.raises(DatasetExistsError, match="--overwrite"):
+        build_nnunet_dataset(config, dry_run=True)
+    build_nnunet_dataset(config, dry_run=True, overwrite=True)  # allowed
+    assert (config.dataset_dir / "dataset.json").exists()  # not deleted
+
+    (source.root / "nnUNet_raw" / "Dataset007_Other").mkdir()
+    with pytest.raises(DatasetExistsError, match="already used"):
+        build_nnunet_dataset(config, dry_run=True, overwrite=True)
+
+
+def test_parent_cleans_up_after_a_dead_worker(
+    source: Source,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A worker killed mid-case (e.g. OOM) can't clean up after itself."""
+    real_attempt = dataset_builder._attempt
+
+    def dies_after_writing_scan(job: CaseJob, options: WriteOptions):  # noqa: ANN202
+        # Simulate the parent's view of a worker that died mid-case: a
+        # partial scan on disk and a WORKER_DIED outcome.
+        if job.case_id.startswith("MSWAL"):
+            dst = image_path(
+                options.dataset_dir, job.case_id, job.split, options.file_ending
+            )
+            dst.write_bytes(b"partial")
+            return WORKER_DIED
+        return real_attempt(job, options)
+
+    monkeypatch.setattr(dataset_builder, "_attempt", dies_after_writing_scan)
+    with caplog.at_level(logging.ERROR, logger="imgnet"):
+        result = build_nnunet_dataset(make_dataset_config(source))
+
+    assert {f.case.case_id for f in result.failures} == {
+        "MSWAL_M1", "MSWAL_M2", "MSWAL_M3",
+    }  # fmt: skip
+    out = source.root / "nnUNet_raw" / DATASET
+    assert list(out.rglob("MSWAL_*")) == []  # partial files removed
+    # One summary line for the dead worker, not one per case.
+    assert caplog.text.count("worker process died") == 1
+    assert "Failed MSWAL" not in caplog.text
+    dataset = json.loads((out / "dataset.json").read_text())
+    assert dataset["numTraining"] == len(_files(out / "imagesTr"))
+
+
+def test_verification_catches_stray_and_missing_files(source: Source) -> None:
+    config = make_dataset_config(source)
+    result = build_nnunet_dataset(config)
+    verify_dataset_files(config, result.written)  # clean build passes
+
+    stray = config.dataset_dir / "imagesTr" / "Leftover_0000.nii.gz"
+    stray.write_bytes(b"")
+    with pytest.raises(DatasetOutputError, match="unexpected files"):
+        verify_dataset_files(config, result.written)
+    stray.unlink()
+
+    (config.dataset_dir / "labelsTs").joinpath("MSWAL_M3.nii.gz").unlink()
+    with pytest.raises(DatasetOutputError, match="labelsTs is missing"):
+        verify_dataset_files(config, result.written)
+
+    # Other files (e.g. .DS_Store) are ignored, as nnU-Net ignores them.
+    (config.dataset_dir / "labelsTs" / "MSWAL_M3.nii.gz").write_bytes(b"")
+    (config.dataset_dir / "imagesTr" / ".DS_Store").write_bytes(b"")
+    verify_dataset_files(config, result.written)
+
+
+def test_unmapped_values_are_reported_once_per_collection(
+    source: Source, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.WARNING, logger="imgnet"):
+        build_nnunet_dataset(make_dataset_config(source))
+    # Every MSWAL mask has value 9, which isn't mapped.
+    assert caplog.text.count("not in intensity_map") == 1
+    assert "MSWAL: 3 cases have mask values" in caplog.text
+    assert "9 (3 cases)" in caplog.text
+
+    manifest = pd.read_csv(
+        source.root / "nnUNet_raw" / DATASET / MANIFEST_NAME
+    ).set_index("sample_id")
+    assert manifest.loc["M1", "notes"] == (
+        "mask values not in intensity_map set to 0: [9]"
+    )
+    assert pd.isna(manifest.loc["A1", "notes"])
+
+
+def test_workers_do_not_import_pandas_or_logging() -> None:
+    """Spawned workers only need case_writer; it must stay lightweight."""
+    code = (
+        "import sys, imgnet.nnunet.case_writer; "
+        "print([m for m in ('pandas', 'pyarrow', 'structlog', "
+        "'imgnet.loggers', 'imgnet.nnunet.case_selection') "
+        "if m in sys.modules])"
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True, text=True, check=True,
+    )  # fmt: skip
+    assert out.stdout.strip() == "[]"
+
+
+def test_cli_reports_errors_without_tracebacks(source: Source) -> None:
+    runner = CliRunner()
+    config_path = write_dataset_config(source, random_state=-1)
+    result = runner.invoke(cli, ["nnunet", str(config_path)])
+    assert result.exit_code == 1
+    assert "random_state" in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+
+    config_path = write_dataset_config(
+        source, input_dir=str(source.root / "missing")
+    )
+    result = runner.invoke(cli, ["nnunet", str(config_path)])
+    assert result.exit_code == 1
+    assert "input_dir does not exist" in result.output
+    assert isinstance(result.exception, SystemExit)

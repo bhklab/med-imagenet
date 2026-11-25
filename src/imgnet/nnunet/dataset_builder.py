@@ -8,6 +8,7 @@ import os
 import shutil
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures.process import BrokenProcessPool
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -19,19 +20,25 @@ from imgnet.nnunet.case_selection import (
     TEST,
     TRAIN,
     CaseSelection,
-    CaseSelectionError,
     SelectedCase,
     SkippedSample,
     read_query_results,
     select_cases,
 )
 from imgnet.nnunet.case_writer import (
+    CaseJob,
     CaseWriteResult,
     WriteOptions,
     image_path,
     init_worker,
     label_path,
+    remove_case_outputs,
     write_case,
+)
+from imgnet.nnunet.errors import (
+    DatasetExistsError,
+    DatasetOutputError,
+    NnUNetBuildError,
 )
 
 if TYPE_CHECKING:
@@ -42,10 +49,12 @@ if TYPE_CHECKING:
 
 MANIFEST_NAME = "imgnet_manifest.csv"
 _SUBDIRS = ("imagesTr", "labelsTr", "imagesTs", "labelsTs")
-
-
-class DatasetExistsError(FileExistsError):
-    """The dataset folder (or its ID) is already in use."""
+_MAX_LOGGED_FAILURES = 20
+_MAX_EXAMPLES = 5
+WORKER_DIED = (
+    "not written: a worker process died (often out of memory). Rerun with "
+    "a lower --num-workers and --overwrite."
+)
 
 
 @dataclass
@@ -64,6 +73,8 @@ class DatasetBuildResult:
     selection: CaseSelection
     written: list[SelectedCase] = field(default_factory=list)
     failures: list[FailedCase] = field(default_factory=list)
+    # case_id -> note for the manifest, e.g. unmapped mask values.
+    notes: dict[str, str] = field(default_factory=dict)
     dry_run: bool = False
 
     @property
@@ -93,7 +104,8 @@ def build_nnunet_dataset(
     config
         Validated config, see :func:`imgnet.nnunet.dataset_config.load_dataset_config`.
     dry_run
-        Only select cases and report; write nothing.
+        Select cases and run every check that doesn't write, but write
+        nothing.
     overwrite
         Delete an existing dataset folder of the same name first.
     num_workers
@@ -102,27 +114,32 @@ def build_nnunet_dataset(
     Returns
     -------
     DatasetBuildResult
-        What was written, skipped and failed. ``dataset.json`` only counts
-        written cases, so failed cases never break nnU-Net's checks.
+        What was written, skipped and failed.
+
+    Raises
+    ------
+    NnUNetBuildError
+        For every expected failure: bad input, case selection problems,
+        an output folder that is in use, or output that fails verification.
     """
     if not config.input_dir.is_dir():
         msg = f"input_dir does not exist: {config.input_dir}"
-        raise FileNotFoundError(msg)
+        raise NnUNetBuildError(msg)
 
     df = read_query_results(config.query_results_csv)
     selection = select_cases(df, config)
-    result = DatasetBuildResult(config.dataset_dir, selection, dry_run=dry_run)
     _log_selection(selection)
+    _check_output(config, overwrite=overwrite)
+    result = DatasetBuildResult(config.dataset_dir, selection, dry_run=dry_run)
     if dry_run:
+        if overwrite and config.dataset_dir.exists():
+            logger.warning(
+                "Dry run: the real run would delete %s first.",
+                config.dataset_dir,
+            )
         return result
-    if not selection.cases:
-        msg = "No cases selected; every sample was skipped."
-        raise CaseSelectionError(msg)
-    if not any(c.split == TRAIN for c in selection.cases):
-        msg = "No training cases selected; nnU-Net needs at least one."
-        raise CaseSelectionError(msg)
 
-    _prepare_output(config, overwrite=overwrite)
+    _reset_output(config)
     options = WriteOptions(
         dataset_dir=config.dataset_dir,
         file_ending=config.file_ending,
@@ -137,22 +154,16 @@ def build_nnunet_dataset(
         config.dataset_dir,
         workers,
     )
+    _write_cases(selection.cases, options, workers, result)
+    _log_failures(result.failures)
 
-    by_id = {c.case_id: c for c in selection.cases}
-    with tqdm_logging_redirect():
-        for case_id, outcome in _run(selection.cases, options, workers):
-            case = by_id[case_id]
-            if isinstance(outcome, CaseWriteResult):
-                result.written.append(case)
-                for warning in outcome.warnings:
-                    logger.warning(warning)
-            else:
-                result.failures.append(FailedCase(case, outcome))
-                logger.error("Failed %s: %s", case_id, outcome)
-
-    _write_dataset_json(config, result.written)
-    _write_manifest(config.dataset_dir, result)
-    _verify_counts(config, result)
+    try:
+        _write_dataset_json(config, result.written)
+        _write_manifest(config.dataset_dir, result)
+    except OSError as e:
+        msg = f"Could not write dataset files in {config.dataset_dir}: {e}"
+        raise DatasetOutputError(msg) from e
+    verify_dataset_files(config, result.written)
     logger.info(
         "Wrote %s: train=%d test=%d skipped=%d failed=%d",
         config.dataset_dir,
@@ -165,7 +176,10 @@ def build_nnunet_dataset(
 
 
 def available_cpus() -> int:
-    """CPUs this process may use (respects SLURM/cgroup limits on Linux)."""
+    """CPUs this process may run on.
+
+    Respects CPU affinity on Linux (e.g. SLURM cpusets), but not CPU quotas.
+    """
     if hasattr(os, "sched_getaffinity"):
         return len(os.sched_getaffinity(0))
     return os.cpu_count() or 1
@@ -176,16 +190,57 @@ def available_cpus() -> int:
 # ---------------------------------------------------------------------------
 
 
+def to_job(case: SelectedCase) -> CaseJob:
+    """The worker payload for *case* (no pandas or logging needed to load)."""
+    return CaseJob(
+        case_id=case.case_id,
+        split=case.split,
+        method=case.method,
+        scan=case.scan,
+        masks=tuple(case.masks),
+        labels=tuple(case.labels),
+        remap=tuple(case.remap.items()),
+    )
+
+
+def _write_cases(
+    cases: list[SelectedCase],
+    options: WriteOptions,
+    workers: int,
+    result: DatasetBuildResult,
+) -> None:
+    jobs = {c.case_id: to_job(c) for c in cases}
+    by_id = {c.case_id: c for c in cases}
+    unmapped: dict[str, Counter[float]] = {}
+    unmapped_cases: Counter[str] = Counter()
+    with tqdm_logging_redirect():
+        for case_id, outcome in _run(list(jobs.values()), options, workers):
+            case = by_id[case_id]
+            if isinstance(outcome, str):
+                # The worker may have died mid-write; clean up here too.
+                remove_case_outputs(jobs[case_id], options)
+                result.failures.append(FailedCase(case, outcome))
+                continue
+            result.written.append(case)
+            if outcome.num_unmapped_values:
+                unmapped_cases[case.collection] += 1
+                unmapped.setdefault(case.collection, Counter()).update(
+                    outcome.unmapped_values
+                )
+                result.notes[case_id] = _unmapped_note(outcome)
+    _log_unmapped(unmapped, unmapped_cases)
+
+
 def _run(
-    cases: list[SelectedCase], options: WriteOptions, workers: int
+    jobs: list[CaseJob], options: WriteOptions, workers: int
 ) -> Iterator[tuple[str, CaseWriteResult | str]]:
     """Yield (case_id, result or error message) as cases finish."""
-    progress = tqdm(total=len(cases), desc="cases", unit="case")
+    progress = tqdm(total=len(jobs), desc="cases", unit="case")
     try:
         if workers == 1:
             init_worker()
-            for case in cases:
-                yield case.case_id, _attempt(case, options)
+            for job in jobs:
+                yield job.case_id, _attempt(job, options)
                 progress.update()
             return
         # spawn: safe with the threads pandas/pyarrow may have started.
@@ -194,12 +249,14 @@ def _run(
             max_workers=workers, mp_context=context, initializer=init_worker
         ) as pool:
             futures = {
-                pool.submit(write_case, case, options): case.case_id
-                for case in cases
+                pool.submit(write_case, job, options): job.case_id
+                for job in jobs
             }
             for future in as_completed(futures):
                 try:
                     outcome: CaseWriteResult | str = future.result()
+                except BrokenProcessPool:
+                    outcome = WORKER_DIED
                 except Exception as e:  # noqa: BLE001 - report every failure
                     outcome = _describe(e)
                 yield futures[future], outcome
@@ -208,11 +265,9 @@ def _run(
         progress.close()
 
 
-def _attempt(
-    case: SelectedCase, options: WriteOptions
-) -> CaseWriteResult | str:
+def _attempt(job: CaseJob, options: WriteOptions) -> CaseWriteResult | str:
     try:
-        return write_case(case, options)
+        return write_case(job, options)
     except Exception as e:  # noqa: BLE001 - report every failure
         return _describe(e)
 
@@ -226,35 +281,90 @@ def _describe(error: Exception) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _prepare_output(config: NnUNetDatasetConfig, *, overwrite: bool) -> None:
+def _check_output(config: NnUNetDatasetConfig, *, overwrite: bool) -> None:
+    """Read-only checks on the output location (also run for dry runs)."""
     dataset_dir = config.dataset_dir
     prefix = f"Dataset{config.dataset_id:03d}_"
-    if config.nnunet_raw_dir.is_dir():
-        others = sorted(
-            p.name
-            for p in config.nnunet_raw_dir.iterdir()
-            if p.name.startswith(prefix) and p.name != dataset_dir.name
+    try:
+        if config.nnunet_raw_dir.is_dir():
+            others = sorted(
+                p.name
+                for p in config.nnunet_raw_dir.iterdir()
+                if p.name.startswith(prefix) and p.name != dataset_dir.name
+            )
+            if others:
+                msg = (
+                    f"Dataset ID {config.dataset_id} is already used by "
+                    f"{others} in {config.nnunet_raw_dir}; nnU-Net needs IDs "
+                    "to be unique."
+                )
+                raise DatasetExistsError(msg)
+        in_use = dataset_dir.exists() and any(dataset_dir.iterdir())
+    except OSError as e:
+        if isinstance(e, NnUNetBuildError):
+            raise
+        msg = f"Could not inspect {config.nnunet_raw_dir}: {e}"
+        raise DatasetOutputError(msg) from e
+    if in_use and not overwrite:
+        msg = (
+            f"{dataset_dir} already exists and is not empty. Leftover cases "
+            "would end up in the dataset; use --overwrite to replace it."
         )
-        if others:
-            msg = (
-                f"Dataset ID {config.dataset_id} is already used by {others} "
-                f"in {config.nnunet_raw_dir}; nnU-Net needs IDs to be unique."
-            )
-            raise DatasetExistsError(msg)
+        raise DatasetExistsError(msg)
 
-    if dataset_dir.exists() and any(dataset_dir.iterdir()):
-        if not overwrite:
-            msg = (
-                f"{dataset_dir} already exists and is not empty. Leftover "
-                "cases would end up in the dataset; use --overwrite to "
-                "replace it."
-            )
-            raise DatasetExistsError(msg)
-        logger.warning("Deleting existing dataset folder %s", dataset_dir)
-        shutil.rmtree(dataset_dir)
 
-    for sub in _SUBDIRS:
-        (dataset_dir / sub).mkdir(parents=True, exist_ok=True)
+def _reset_output(config: NnUNetDatasetConfig) -> None:
+    """Delete any previous dataset folder and create the empty layout."""
+    dataset_dir = config.dataset_dir
+    try:
+        if dataset_dir.exists():
+            logger.warning("Deleting existing dataset folder %s", dataset_dir)
+            shutil.rmtree(dataset_dir)
+        for sub in _SUBDIRS:
+            (dataset_dir / sub).mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        msg = f"Could not prepare {dataset_dir}: {e}"
+        raise DatasetOutputError(msg) from e
+
+
+def verify_dataset_files(
+    config: NnUNetDatasetConfig, written: list[SelectedCase]
+) -> None:
+    """The output folders must hold exactly the written cases' files.
+
+    Lists each folder the way nnU-Net does (every file ending in
+    ``file_ending``), so leftovers, orphans and case-insensitive name
+    clashes are all caught.
+
+    Raises
+    ------
+    DatasetOutputError
+        If any folder has unexpected or missing files.
+    """
+    ending = config.file_ending
+    expected: dict[str, set[str]] = {sub: set() for sub in _SUBDIRS}
+    for case in written:
+        for path in (
+            image_path(config.dataset_dir, case.case_id, case.split, ending),
+            label_path(config.dataset_dir, case.case_id, case.split, ending),
+        ):
+            expected[path.parent.name].add(path.name)
+    problems: list[str] = []
+    for sub, names in expected.items():
+        folder = config.dataset_dir / sub
+        actual = {p.name for p in folder.iterdir() if p.name.endswith(ending)}
+        unexpected = sorted(actual - names)[:_MAX_EXAMPLES]
+        missing = sorted(names - actual)[:_MAX_EXAMPLES]
+        if unexpected:
+            problems.append(f"{sub} has unexpected files {unexpected}")
+        if missing:
+            problems.append(f"{sub} is missing {missing}")
+    if problems:
+        msg = (
+            f"{config.dataset_dir} does not match the cases in dataset.json: "
+            + "; ".join(problems)
+        )
+        raise DatasetOutputError(msg)
 
 
 def _write_dataset_json(
@@ -274,7 +384,7 @@ def _write_dataset_json(
         "numTest": sum(c.split == TEST for c in written),
     }
     path = config.dataset_dir / "dataset.json"
-    path.write_text(json.dumps(dataset, indent=2) + "\n")
+    path.write_text(json.dumps(dataset, indent=2) + "\n", encoding="utf-8")
 
 
 def _write_manifest(dataset_dir: Path, result: DatasetBuildResult) -> None:
@@ -285,13 +395,14 @@ def _write_manifest(dataset_dir: Path, result: DatasetBuildResult) -> None:
             c,
             "failed" if c.case_id in failed else "written",
             failed.get(c.case_id, ""),
+            result.notes.get(c.case_id, ""),
         )
         for c in result.selection.cases
     ]
     rows += [_skipped_row(s) for s in result.selection.skipped]
     columns = [
         "collection", "sample_id", "case_id", "split", "status", "reason",
-        "scan", "masks",
+        "notes", "scan", "masks",
     ]  # fmt: skip
     frame = pd.DataFrame(rows, columns=columns)
     frame = frame.sort_values(["collection", "sample_id"], kind="stable")
@@ -299,7 +410,7 @@ def _write_manifest(dataset_dir: Path, result: DatasetBuildResult) -> None:
 
 
 def _manifest_row(
-    case: SelectedCase, status: str, reason: str
+    case: SelectedCase, status: str, reason: str, notes: str
 ) -> dict[str, str]:
     return {
         "collection": case.collection,
@@ -308,6 +419,7 @@ def _manifest_row(
         "split": case.split,
         "status": status,
         "reason": reason,
+        "notes": notes,
         "scan": str(case.scan),
         "masks": ";".join(str(p) for p in case.masks),
     }
@@ -320,24 +432,6 @@ def _skipped_row(skipped: SkippedSample) -> dict[str, str]:
         "status": "skipped",
         "reason": skipped.reason,
     }
-
-
-def _verify_counts(
-    config: NnUNetDatasetConfig, result: DatasetBuildResult
-) -> None:
-    """Every written case must have exactly its two files on disk."""
-    missing = [
-        str(p)
-        for case in result.written
-        for p in (
-            image_path(config.dataset_dir, case, config.file_ending),
-            label_path(config.dataset_dir, case, config.file_ending),
-        )
-        if not (p.is_file() or p.is_symlink())
-    ]
-    if missing:
-        msg = f"Written cases are missing files: {missing[:5]}"
-        raise RuntimeError(msg)
 
 
 # ---------------------------------------------------------------------------
@@ -358,12 +452,11 @@ def _log_selection(selection: CaseSelection) -> None:
             if s.collection == name
         )
         logger.info(
-            "%s: train=%d test=%d skipped=%d %s",
+            "%s: train=%d test=%d skipped=%d",
             name,
             splits[(name, TRAIN)],
             splits[(name, TEST)],
             sum(reasons.values()),
-            dict(reasons) if reasons else "",
         )
         if reasons:
             logger.warning(
@@ -378,3 +471,49 @@ def _log_selection(selection: CaseSelection) -> None:
 def _reason_kind(reason: str) -> str:
     """Group reasons like 'file not found: /a/b' under 'file not found'."""
     return reason.split(":", 1)[0].split(" [", 1)[0]
+
+
+def _log_failures(failures: list[FailedCase]) -> None:
+    died = [f for f in failures if f.error == WORKER_DIED]
+    other = [f for f in failures if f.error != WORKER_DIED]
+    for failure in other[:_MAX_LOGGED_FAILURES]:
+        logger.error("Failed %s: %s", failure.case.case_id, failure.error)
+    if len(other) > _MAX_LOGGED_FAILURES:
+        logger.error(
+            "... and %d more failed cases; see %s.",
+            len(other) - _MAX_LOGGED_FAILURES,
+            MANIFEST_NAME,
+        )
+    if died:
+        logger.error(
+            "%d cases were not written because a worker process died "
+            "(often out of memory). Rerun with a lower --num-workers and "
+            "--overwrite.",
+            len(died),
+        )
+
+
+def _unmapped_note(outcome: CaseWriteResult) -> str:
+    values = outcome.unmapped_values
+    more = outcome.num_unmapped_values - len(values)
+    suffix = f" (+{more} more)" if more > 0 else ""
+    return f"mask values not in intensity_map set to 0: {values}{suffix}"
+
+
+def _log_unmapped(
+    unmapped: dict[str, Counter[float]], unmapped_cases: Counter[str]
+) -> None:
+    for collection, values in sorted(unmapped.items()):
+        common = values.most_common(10)
+        shown = ", ".join(f"{v} ({n} cases)" for v, n in common)
+        more = len(values) - len(common)
+        logger.warning(
+            "%s: %d cases have mask values that are not in intensity_map "
+            "and were set to 0: %s%s. Per-case values are in the notes "
+            "column of %s.",
+            collection,
+            unmapped_cases[collection],
+            shown,
+            f", +{more} more" if more > 0 else "",
+            MANIFEST_NAME,
+        )

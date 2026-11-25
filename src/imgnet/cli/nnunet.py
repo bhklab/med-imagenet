@@ -14,7 +14,7 @@ from imgnet.loggers import logger
 @click.option(
     "--dry-run",
     is_flag=True,
-    help="Select cases and report counts without writing any files.",
+    help="Select cases and run every check that does not write, then report counts. Writes nothing.",
 )
 @click.option(
     "--overwrite",
@@ -67,9 +67,9 @@ def nnunet(
       # Build with 16 worker processes
       imgnet nnunet config.json -j 16
     """
-    from imgnet.nnunet.dataset_builder import DatasetExistsError, build_nnunet_dataset
-    from imgnet.nnunet.dataset_config import DatasetConfigError, load_dataset_config
-    from imgnet.nnunet.case_selection import CaseSelectionError
+    from imgnet.nnunet.dataset_builder import build_nnunet_dataset
+    from imgnet.nnunet.dataset_config import load_dataset_config
+    from imgnet.nnunet.errors import NnUNetBuildError
 
     try:
         config = load_dataset_config(config_path)
@@ -79,7 +79,7 @@ def nnunet(
             overwrite=overwrite,
             num_workers=num_workers,
         )
-    except (DatasetConfigError, CaseSelectionError, DatasetExistsError, FileNotFoundError) as e:
+    except NnUNetBuildError as e:
         raise click.ClickException(str(e)) from e
 
     summary = (

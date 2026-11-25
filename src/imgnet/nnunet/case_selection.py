@@ -7,17 +7,19 @@ before anything is written.
 
 from __future__ import annotations
 
+import difflib
+import hashlib
 import math
 import re
-import zlib
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-import numpy as np
 import pandas as pd
 
 from imgnet.loggers import logger
 from imgnet.nnunet.dataset_config import Regex
+from imgnet.nnunet.errors import CaseSelectionError
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -32,10 +34,9 @@ REQUIRED_COLUMNS = ("Collection", "SampleID", "file_type", "filepath")
 TRAIN, TEST = "Tr", "Ts"
 _MAX_EXAMPLES = 5
 _INVALID_ID_CHARS = re.compile(r"[^A-Za-z0-9_-]")
-
-
-class CaseSelectionError(ValueError):
-    """Raised when the query results can't be turned into cases."""
+_TRAILING_ZERO_DECIMALS = re.compile(r"\.0+$")
+# Tolerance for float error in test_size * n_groups, e.g. 0.07 * 100.
+_SPLIT_EPSILON = 1e-9
 
 
 @dataclass
@@ -54,6 +55,8 @@ class SelectedCase:
     remap: dict[int, int] = field(default_factory=dict)
     case_id: str = ""
     split: str = ""
+    # Modality column of the chosen scan row, if the CSV has one.
+    modality: str | None = None
 
 
 @dataclass
@@ -77,7 +80,9 @@ def read_query_results(path: Path) -> pd.DataFrame:
     """Read a query results CSV with every column as text."""
     try:
         return pd.read_csv(path, dtype=str, low_memory=False)
-    except (OSError, pd.errors.ParserError) as e:
+    # ValueError covers pandas' EmptyDataError/ParserError and
+    # UnicodeDecodeError.
+    except (OSError, ValueError) as e:
         msg = f"Could not read query results {path}: {e}"
         raise CaseSelectionError(msg) from e
 
@@ -97,8 +102,10 @@ def select_cases(
     Raises
     ------
     CaseSelectionError
-        If columns are missing, a selector is ambiguous, a split can't be
-        made, or two cases would get the same ID.
+        If columns are missing, a selector is ambiguous, a configured ROI
+        never occurs, a collection ends up with no cases, a split can't be
+        made, there are no training cases, or two cases would get the same
+        ID (ignoring letter case).
     """
     _check_columns(df, config)
 
@@ -109,6 +116,8 @@ def select_cases(
         coll_cases, coll_skipped = _resolve_collection(
             rows, coll_cfg, config.input_dir
         )
+        if not coll_cases:
+            _raise_no_cases(coll_cfg.collection, coll_skipped, config)
         splits = assign_splits(
             rows,
             [c.sample_id for c in coll_cases],
@@ -126,7 +135,11 @@ def select_cases(
         cases.extend(coll_cases)
         skipped.extend(coll_skipped)
 
+    if not any(c.split == TRAIN for c in cases):
+        msg = "No training cases selected; nnU-Net needs at least one."
+        raise CaseSelectionError(msg)
     _check_unique_case_ids(cases)
+    _warn_on_modality_mismatch(cases, config.channel_name)
     return CaseSelection(cases=cases, skipped=skipped)
 
 
@@ -172,21 +185,77 @@ def _check_columns(df: pd.DataFrame, config: NnUNetDatasetConfig) -> None:
 
 
 def _check_unique_case_ids(cases: list[SelectedCase]) -> None:
+    """Case IDs must be unique ignoring letter case.
+
+    macOS and Windows file systems are case-insensitive by default, so
+    ``MSWAL_M1`` and ``MSWAL_m1`` would overwrite each other's files.
+    """
     by_id: dict[str, list[SelectedCase]] = {}
     for case in cases:
-        by_id.setdefault(case.case_id, []).append(case)
-    clashes = {k: v for k, v in by_id.items() if len(v) > 1}
+        by_id.setdefault(case.case_id.casefold(), []).append(case)
+    clashes = [v for v in by_id.values() if len(v) > 1]
     if clashes:
         examples = [
-            f"{cid}: " + ", ".join(f"{c.collection}/{c.sample_id}" for c in v)
-            for cid, v in list(clashes.items())[:_MAX_EXAMPLES]
+            ", ".join(
+                f"{c.collection}/{c.sample_id} -> {c.case_id}" for c in v
+            )
+            for v in clashes[:_MAX_EXAMPLES]
         ]
         msg = (
-            f"{len(clashes)} case IDs are shared by more than one sample. "
-            "Set prefix_with_collection to true, or check SampleIDs that "
-            "differ only by removed characters:\n  " + "\n  ".join(examples)
+            f"{len(clashes)} case IDs are shared by more than one sample "
+            "(IDs are compared ignoring letter case). Set "
+            "prefix_with_collection to true, or check SampleIDs that differ "
+            "only by letter case or removed characters:\n  "
+            + "\n  ".join(examples)
         )
         raise CaseSelectionError(msg)
+
+
+def _raise_no_cases(
+    collection: str,
+    skipped: list[SkippedSample],
+    config: NnUNetDatasetConfig,
+) -> None:
+    reasons = Counter(s.reason.split(":", 1)[0] for s in skipped)
+    msg = (
+        f"{collection}: no cases selected; all {len(skipped)} samples were "
+        f"skipped ({dict(reasons.most_common(_MAX_EXAMPLES))})."
+    )
+    not_found = [s for s in skipped if s.reason.startswith("file not found")]
+    if not_found:
+        msg += (
+            " None of the selected files were found: check that input_dir "
+            f"points at the download folder that contains {collection!r} "
+            f"(usually 'srcdata'). input_dir is {config.input_dir}; first "
+            f"missing file: {not_found[0].reason.split(': ', 1)[1]}"
+        )
+    raise CaseSelectionError(msg)
+
+
+def _warn_on_modality_mismatch(
+    cases: list[SelectedCase], channel_name: str
+) -> None:
+    """nnU-Net normalises by channel name, so modalities must agree."""
+    by_modality = Counter(c.modality for c in cases if c.modality)
+    if len(by_modality) > 1:
+        logger.warning(
+            "Selected scans have mixed modalities %s, but the dataset has "
+            "one input channel (%r). nnU-Net would normalise them all the "
+            "same way.",
+            dict(by_modality),
+            channel_name,
+        )
+    elif by_modality:
+        (modality,) = by_modality
+        if modality.casefold() != channel_name.casefold():
+            logger.warning(
+                "Selected scans are %s but channel_name is %r. nnU-Net "
+                "chooses the normalisation from channel_name; set it to %r "
+                "if that is what these scans are.",
+                modality,
+                channel_name,
+                modality,
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +266,11 @@ def _check_unique_case_ids(cases: list[SelectedCase]) -> None:
 def select_rows(df: pd.DataFrame, selector: Selector) -> pd.Series:
     """Boolean mask of rows matching every entry of *selector*.
 
-    Values are compared as text. Missing values never match.
+    - Strings and booleans are compared with the CSV text exactly.
+    - Integers also match ``"1.0"``: ``imgnet query`` writes integer
+      columns as floats when collections are combined.
+    - Floats are compared numerically.
+    - Missing values never match.
     """
     mask = pd.Series(True, index=df.index)
     for column, expected in selector.items():
@@ -208,13 +281,21 @@ def select_rows(df: pd.DataFrame, selector: Selector) -> pd.Series:
             )
         else:
             allowed = expected if isinstance(expected, list) else [expected]
-            matched = values.isin([_as_text(v) for v in allowed])
+            matched = pd.Series(False, index=df.index)
+            for value in allowed:
+                matched |= _matches_value(values, value)
         mask &= matched
     return mask
 
 
-def _as_text(value: object) -> str:
-    return str(value)
+def _matches_value(values: pd.Series, expected: object) -> pd.Series:
+    # bool before int: bool is a subclass of int.
+    if isinstance(expected, bool) or not isinstance(expected, (int, float)):
+        return values == str(expected)
+    if isinstance(expected, int):
+        text = values.str.replace(_TRAILING_ZERO_DECIMALS, "", regex=True)
+        return text == str(expected)
+    return pd.to_numeric(values, errors="coerce") == expected
 
 
 # ---------------------------------------------------------------------------
@@ -252,6 +333,7 @@ def _resolve_collection(
         & select_rows(rows, cfg.mask_selector)
     ]
     scans_by_sid = _paths_by(scans, ["SampleID"])
+    modality_by_scan = _modality_by_filepath(scans)
     coll_dir = input_dir / name
 
     scan_ambiguity = _Ambiguity("scans")
@@ -260,6 +342,7 @@ def _resolve_collection(
     skipped: list[SkippedSample] = []
 
     if cfg.method == "combine":
+        _check_rois_exist(masks, cfg)
         masks = masks[masks[cfg.roi_column].isin(list(cfg.intensity_map))]
         masks_by_key = _paths_by(masks, ["SampleID", cfg.roi_column])
     else:
@@ -274,7 +357,12 @@ def _resolve_collection(
             scan_ambiguity.add(sid, scan_paths)
             continue
         case = SelectedCase(
-            name, sid, coll_dir / scan_paths[0], cfg.method, []
+            name,
+            sid,
+            coll_dir / scan_paths[0],
+            cfg.method,
+            [],
+            modality=modality_by_scan.get(scan_paths[0]),
         )
         attach = _attach_roi_masks if cfg.method == "combine" else _attach_mask
         reason = attach(case, coll_dir, cfg, masks_by_key, mask_ambiguity)
@@ -296,6 +384,32 @@ def _resolve_collection(
     cases, missing = _drop_missing_files(cases)
     skipped.extend(missing)
     return cases, skipped
+
+
+def _check_rois_exist(masks: pd.DataFrame, cfg: CollectionConfig) -> None:
+    """A configured ROI with no mask rows at all is almost always a typo."""
+    available = set(masks[cfg.roi_column].dropna().unique())
+    unknown = [roi for roi in cfg.intensity_map if roi not in available]
+    if not unknown:
+        return
+    hints = {
+        roi: difflib.get_close_matches(roi, available, n=3) for roi in unknown
+    }
+    shown = sorted(available)[:30]
+    more = f" (+{len(available) - 30} more)" if len(available) > 30 else ""
+    msg = (
+        f"{cfg.collection}: ROIs {unknown} have no masks in the query "
+        f"results (after the selectors). Close matches: {hints}. "
+        f"Available {cfg.roi_column!r} values: {shown}{more}"
+    )
+    raise CaseSelectionError(msg)
+
+
+def _modality_by_filepath(scans: pd.DataFrame) -> dict[str, str]:
+    if "Modality" not in scans.columns:
+        return {}
+    known = scans.dropna(subset=["filepath", "Modality"])
+    return dict(zip(known["filepath"], known["Modality"], strict=True))
 
 
 _AMBIGUOUS = "<ambiguous>"
@@ -407,6 +521,7 @@ def assign_splits(
     """
     if not sample_ids:
         return {}
+    all_columns = list(rows.columns)
     rows = rows[rows["SampleID"].isin(sample_ids)]
     if cfg.split is not None:
         column = cfg.split.column
@@ -420,11 +535,18 @@ def assign_splits(
                     cfg.group_column,
                 )
             return _splits_from_column(rows, sample_ids, cfg)
+        if column in all_columns:
+            problem = "has no values for this collection"
+        else:
+            close = difflib.get_close_matches(column, all_columns, n=3)
+            problem = "is not in the query results" + (
+                f" (did you mean {close}?)" if close else ""
+            )
         logger.warning(
-            "%s: split column %r has no values; using a random split "
-            "instead%s.",
+            "%s: split column %r %s; using a random split instead%s.",
             cfg.collection,
             column,
+            problem,
             f", grouped by {cfg.group_column!r}" if cfg.group_column else "",
         )
     return _random_splits(rows, sample_ids, cfg, test_size, random_state)
@@ -513,7 +635,7 @@ def _random_splits(
             for sid, v in values.items()
         }
 
-    unique_groups = sorted(set(groups.values()))
+    unique_groups = set(groups.values())
     n_groups = len(unique_groups)
     n_test = 0
     if test_size > 0:
@@ -524,17 +646,30 @@ def _random_splits(
                 n_groups,
             )
         else:
-            n_test = min(math.ceil(test_size * n_groups), n_groups - 1)
+            n_test = min(
+                math.ceil(test_size * n_groups - _SPLIT_EPSILON),
+                n_groups - 1,
+            )
 
-    # Seed per collection, so adding or reordering collections doesn't
-    # change another collection's split.
-    seed = [random_state, zlib.crc32(cfg.collection.encode())]
-    order = np.random.default_rng(seed).permutation(n_groups)
-    test_groups = {unique_groups[i] for i in order[:n_test]}
+    # Each group gets a fixed pseudo-random rank from (seed, collection,
+    # group), and the lowest ranks form the test set. A group's rank
+    # doesn't depend on which other groups exist, so adding or removing a
+    # sample moves at most one other group across the split, and other
+    # collections never affect this one.
+    ranked = sorted(
+        unique_groups,
+        key=lambda g: _split_rank(random_state, cfg.collection, g),
+    )
+    test_groups = set(ranked[:n_test])
     return {
         sid: (TEST if group in test_groups else TRAIN)
         for sid, group in groups.items()
     }
+
+
+def _split_rank(random_state: int, collection: str, group: str) -> bytes:
+    key = f"{random_state}\0{collection}\0{group}".encode()
+    return hashlib.blake2b(key, digest_size=16).digest()
 
 
 # ---------------------------------------------------------------------------
